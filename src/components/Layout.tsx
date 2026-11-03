@@ -1,9 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
+import { classTint, initials } from '../lib/fun'
+import { useTheme } from '../lib/theme'
+import { DoodleField } from './Doodles'
+import { Avatar } from './ui'
 
 export function Layout({ children }: { children: ReactNode }) {
   const { profile, isTeacher, signOut } = useAuth()
+  const [theme, setTheme] = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
@@ -41,6 +46,17 @@ export function Layout({ children }: { children: ReactNode }) {
             )}
           </nav>
           <div className="account">
+            <button
+              type="button"
+              className="themebtn"
+              aria-label="Dark chalkboard theme"
+              aria-pressed={theme === 'dark'}
+              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
+            </button>
+            <Avatar text={initials(profile?.full_name, profile?.email)} tint={classTint(profile?.id ?? '')} />
             <span className="who" title={profile?.email}>
               {profile?.full_name || profile?.email}
               {isTeacher && <span className="role">Teacher</span>}
@@ -67,18 +83,31 @@ export function AuthLayout({ title, intro, children }: { title: string; intro: R
   return (
     <main className="gate" id="main">
       <div className="gate__board">
+        <DoodleField />
         <div className="mark">
           Chalk<span>line</span>
         </div>
         <div>
           <p className="gate__kicker">Before class</p>
-          <h1 className="gate__title">Watch the short lessons. Come to class ready.</h1>
+          <h1 className="gate__title">
+            Watch the short lessons. Come to class <span className="chalk-underline">ready.</span>
+          </h1>
           <p className="gate__text">
             Your teacher assigns a few short videos before each class. Watch them here, check yourself, and tell your
             teacher what was confusing.
           </p>
         </div>
-        <div />
+        <ul className="gate__perks">
+          <li>
+            <span aria-hidden="true">🎬</span> Bite-sized videos
+          </li>
+          <li>
+            <span aria-hidden="true">🧠</span> Quick self-checks
+          </li>
+          <li>
+            <span aria-hidden="true">💬</span> Ask what confused you
+          </li>
+        </ul>
       </div>
       <div className="gate__form">
         <div className="form">

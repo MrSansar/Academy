@@ -5,7 +5,10 @@ import { CheckQuestions } from '../../components/CheckQuestions'
 import { ConfusionBox } from '../../components/ConfusionBox'
 import { LessonPlayer, type PlayerControls } from '../../components/LessonPlayer'
 import { TranscriptPanel } from '../../components/TranscriptPanel'
+import { Rocket } from '../../components/Doodles'
 import { ErrorNote, Loading } from '../../components/ui'
+import { burst } from '../../lib/confetti'
+import { completeLineFor } from '../../lib/fun'
 import { formatDue, formatMinutes } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import type { Lesson, LessonProgress, Question } from '../../lib/types'
@@ -33,12 +36,14 @@ export function LessonPage() {
   const [data, setData] = useState<Loaded | null>(null)
   const [error, setError] = useState('')
   const [time, setTime] = useState(0)
+  const [celebrating, setCelebrating] = useState(false)
   const controls = useRef<PlayerControls | null>(null)
 
   useEffect(() => {
     let active = true
     setData(null)
     setError('')
+    setCelebrating(false)
     ;(async () => {
       const { data: lesson, error: lErr } = await supabase.from('lessons').select('*').eq('id', lessonId).maybeSingle()
       if (lErr) throw lErr
@@ -113,6 +118,23 @@ export function LessonPage() {
             {idx >= 0 && ` · Lesson ${idx + 1} of ${assignment.lessons.length}`}
           </p>
         )}
+        {assignment && idx >= 0 && assignment.lessons.length > 1 && (
+          <ol className="steps" aria-label="Lessons in this assignment">
+            {assignment.lessons.map((l, i) => (
+              <li key={l.id} className={i === idx ? 'steps__dot steps__dot--here' : 'steps__dot'}>
+                {i === idx ? (
+                  <span aria-current="step" title={l.title}>
+                    <span className="visually-hidden">{l.title} (this lesson)</span>
+                  </span>
+                ) : (
+                  <Link to={`/lesson/${l.id}?a=${assignment.id}`} title={l.title}>
+                    <span className="visually-hidden">{l.title}</span>
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
         <h1>{lesson.title}</h1>
         <p className="muted">
           {formatMinutes(lesson.duration_seconds)}
@@ -134,8 +156,37 @@ export function LessonPage() {
             durationSeconds={lesson.duration_seconds}
             tracking={progress ? { userId, initial: progress } : undefined}
             onReady={(c) => (controls.current = c)}
+            onComplete={() => {
+              setCelebrating(true)
+              burst()
+            }}
             onTime={hasTranscript ? (t) => setTime(Math.floor(t)) : undefined}
           />
+
+          {celebrating && (
+            <div className="celebrate" role="status">
+              <Rocket className="celebrate__doodle" />
+              <div className="celebrate__text">
+                <p className="celebrate__title">{completeLineFor(lesson.id)}</p>
+                <p className="celebrate__sub">
+                  {next
+                    ? 'One step closer to being ready for class.'
+                    : assignment
+                      ? `That’s the last lesson in “${assignment.title}”.`
+                      : 'Nice work.'}
+                </p>
+              </div>
+              {next ? (
+                <Link className="btn btn--chalk btn--small" to={`/lesson/${next.id}?a=${assignment!.id}`}>
+                  Next lesson →
+                </Link>
+              ) : (
+                <Link className="btn btn--chalk btn--small" to="/">
+                  Back to assignments
+                </Link>
+              )}
+            </div>
+          )}
 
           {lesson.summary && (
             <section className="summary" aria-labelledby="summary-h">

@@ -42,7 +42,9 @@ export function ConfusionBox({ lessonId, userId, disabled }: { lessonId: string;
 
   return (
     <section className="card confusion" aria-labelledby={`${id}-h`}>
-      <h2 id={`${id}-h`}>What was confusing?</h2>
+      <h2 id={`${id}-h`}>
+        <span aria-hidden="true">💬 </span>What was confusing?
+      </h2>
       <form onSubmit={submit}>
         <label htmlFor={id} className="hint">
           Optional. Only your teacher sees this; it helps decide what to go over in class.
@@ -63,7 +65,7 @@ export function ConfusionBox({ lessonId, userId, disabled }: { lessonId: string;
             {busy ? 'Sending…' : 'Send to my teacher'}
           </button>
           <span aria-live="polite" className="ok">
-            {sent && 'Sent. Thank you.'}
+            {sent && '💌 Sent. Thank you, that really helps.'}
           </span>
         </div>
         {error && <p className="error" role="alert">{error}</p>}

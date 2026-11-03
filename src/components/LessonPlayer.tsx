@@ -30,6 +30,8 @@ interface Props {
   /** Omit to preview without recording anything (teacher view, editor). */
   tracking?: { userId: string; initial: LessonProgress }
   onSaved?: (row: LessonProgress) => void
+  /** Fires once when the student crosses the completion mark during this visit. */
+  onComplete?: () => void
   onTime?: (seconds: number) => void
   onReady?: (controls: PlayerControls, durationSeconds: number) => void
 }
@@ -43,7 +45,17 @@ function savedSpeed(): number {
   }
 }
 
-export function LessonPlayer({ lessonId, youtubeId, title, durationSeconds, tracking, onSaved, onTime, onReady }: Props) {
+export function LessonPlayer({
+  lessonId,
+  youtubeId,
+  title,
+  durationSeconds,
+  tracking,
+  onSaved,
+  onComplete,
+  onTime,
+  onReady,
+}: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<YTPlayer | null>(null)
   const trackerRef = useRef(new WatchTracker())
@@ -63,9 +75,9 @@ export function LessonPlayer({ lessonId, youtubeId, title, durationSeconds, trac
   const speedId = useId()
 
   // Keep the latest callbacks without re-creating the player.
-  const cb = useRef({ onSaved, onTime, onReady, title })
+  const cb = useRef({ onSaved, onComplete, onTime, onReady, title })
   useEffect(() => {
-    cb.current = { onSaved, onTime, onReady, title }
+    cb.current = { onSaved, onComplete, onTime, onReady, title }
   })
 
   const userId = tracking?.userId
@@ -296,6 +308,14 @@ export function LessonPlayer({ lessonId, youtubeId, title, durationSeconds, trac
   const complete = percent >= COMPLETE_AT_PERCENT
   const canResume = isTracking && !complete && resumeAt > 5 && resumeAt < duration - 10
 
+  // Celebrate only a completion that happens now, not one from an earlier visit.
+  const wasComplete = useRef(Number(tracking?.initial.percent_watched ?? 0) >= COMPLETE_AT_PERCENT)
+  useEffect(() => {
+    if (!isTracking || !complete || wasComplete.current) return
+    wasComplete.current = true
+    cb.current.onComplete?.()
+  }, [complete, isTracking])
+
   return (
     <div className="player">
       <div className="stage" ref={hostRef}>
@@ -338,7 +358,7 @@ export function LessonPlayer({ lessonId, youtubeId, title, durationSeconds, trac
           <div className="watched">
             <p className="watched__text" aria-live="polite">
               {complete ? (
-                <strong className="ok">✓ Complete</strong>
+                <strong className="ok watched__done">✓ Complete</strong>
               ) : (
                 <>
                   <strong>{Math.floor(percent)}%</strong> watched

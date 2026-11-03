@@ -53,6 +53,56 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
   )
 }
 
+/** Circular "x of y" meter. The visible text inside is the accessible value. */
+export function ProgressRing({
+  done,
+  total,
+  size = 64,
+  label,
+}: {
+  done: number
+  total: number
+  size?: number
+  label: string
+}) {
+  const r = 26
+  const c = 2 * Math.PI * r
+  const frac = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0
+  const complete = total > 0 && done >= total
+  return (
+    <div
+      className={complete ? 'ring ring--done' : 'ring'}
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`${label}: ${done} of ${total} done`}
+    >
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle className="ring__track" cx="32" cy="32" r={r} />
+        <circle
+          className="ring__fill"
+          cx="32"
+          cy="32"
+          r={r}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - frac)}
+          transform="rotate(-90 32 32)"
+        />
+      </svg>
+      <span className="ring__text" aria-hidden="true">
+        {complete ? '★' : `${done}/${total}`}
+      </span>
+    </div>
+  )
+}
+
+export function Avatar({ text, tint }: { text: string; tint: string }) {
+  return (
+    <span className={`avatar tint--${tint}`} aria-hidden="true">
+      {text}
+    </span>
+  )
+}
+
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: ReactNode }
 
 export function Field({ label, hint, id, ...rest }: FieldProps) {
