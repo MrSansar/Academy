@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
-import { ErrorNote, Field, Loading, TextArea } from '../../components/ui'
+import { Crumbs, ErrorNote, Field, Loading, TextArea } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { formatClock } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import type { Course, Lesson } from '../../lib/types'
@@ -17,6 +18,7 @@ export function CourseLessons() {
   const [lessons, setLessons] = useState<LessonLite[] | null>(null)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
+  usePageTitle(course?.title ?? 'Course')
 
   const load = useCallback(async () => {
     const [c, l] = await Promise.all([
@@ -54,9 +56,7 @@ export function CourseLessons() {
 
   return (
     <div className="page">
-      <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/teach">← Classes &amp; courses</Link>
-      </nav>
+      <Crumbs items={[{ label: 'Lessons', to: '/teach/courses' }, { label: course.title }]} />
       {editing ? (
         <CourseForm course={course} onDone={(c) => { if (c) setCourse(c); setEditing(false) }} />
       ) : (

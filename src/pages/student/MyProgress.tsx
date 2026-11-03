@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
 import { ClassMark, StarSticker, TodoRow } from '../../components/Notebook'
 import { ErrorNote, Loading } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { formatDue } from '../../lib/format'
 import { loadMyAssignments, loadMyClasses, loadMyProgress, type MyClass, type StudentAssignment } from '../../lib/studentData'
 import { errorMessage } from '../../lib/supabase'
@@ -19,6 +20,7 @@ interface Row {
 export function MyProgress() {
   const { session } = useAuth()
   const userId = session!.user.id
+  usePageTitle('My progress')
   const [data, setData] = useState<{ a: StudentAssignment[]; c: MyClass[]; p: Map<string, LessonProgress> } | null>(null)
   const [error, setError] = useState('')
 

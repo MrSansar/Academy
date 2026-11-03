@@ -1,4 +1,5 @@
 import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { Link } from 'react-router'
 import { pct } from '../lib/format'
 import type { AssignmentStatus, LessonStatus } from '../lib/types'
 
@@ -120,5 +121,30 @@ export function NotFound() {
         <a href="#/">Go to your home page</a>
       </p>
     </div>
+  )
+}
+
+export interface Crumb {
+  label: string
+  /** Omit for the current page (the last crumb). */
+  to?: string
+}
+
+/** "Classes / Physics 101 / Vectors, part 1": every level above this page is one click away. */
+export function Crumbs({ items }: { items: Crumb[] }) {
+  return (
+    <nav aria-label="Breadcrumb" className="crumbs">
+      <ol>
+        {items.map((c, i) => (
+          <li key={i}>
+            {c.to ? (
+              <Link to={c.to}>{c.label}</Link>
+            ) : (
+              <span aria-current="page">{c.label}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
   )
 }

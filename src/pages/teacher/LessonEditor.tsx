@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { LessonPlayer } from '../../components/LessonPlayer'
-import { ErrorNote, Field, Loading, TextArea, Toggle } from '../../components/ui'
+import { Crumbs, ErrorNote, Field, Loading, TextArea, Toggle } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { formatClock } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import { parseTranscript } from '../../lib/transcript'
@@ -54,6 +55,18 @@ export function LessonEditor() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
   const [busy, setBusy] = useState(false)
+  const [courseTitle, setCourseTitle] = useState('')
+  usePageTitle(isNew ? 'New lesson' : title || 'Edit lesson')
+
+  useEffect(() => {
+    if (!courseId) return
+    void supabase
+      .from('courses')
+      .select('title')
+      .eq('id', courseId)
+      .maybeSingle()
+      .then(({ data }) => setCourseTitle(data?.title ?? ''))
+  }, [courseId])
 
   useEffect(() => {
     if (!params.lessonId) return
@@ -201,9 +214,13 @@ export function LessonEditor() {
 
   return (
     <div className="page">
-      <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to={`/teach/courses/${courseId}`}>← Course lessons</Link>
-      </nav>
+      <Crumbs
+        items={[
+          { label: 'Lessons', to: '/teach/courses' },
+          { label: courseTitle || 'Course', to: `/teach/courses/${courseId}` },
+          { label: isNew ? 'New lesson' : title || 'Lesson' },
+        ]}
+      />
       <div className="lede lede--row">
         <h1>{isNew ? 'New lesson' : 'Edit lesson'}</h1>
         {!isNew && (

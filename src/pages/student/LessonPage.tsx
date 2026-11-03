@@ -6,7 +6,8 @@ import { ConfusionBox } from '../../components/ConfusionBox'
 import { LessonPlayer, type PlayerControls } from '../../components/LessonPlayer'
 import { TranscriptPanel } from '../../components/TranscriptPanel'
 import { Stamp } from '../../components/Notebook'
-import { ErrorNote, Loading } from '../../components/ui'
+import { Crumbs, ErrorNote, Loading } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { burst } from '../../lib/confetti'
 import { completeLineFor } from '../../lib/fun'
 import { formatDue, formatMinutes } from '../../lib/format'
@@ -38,6 +39,7 @@ export function LessonPage() {
   const [time, setTime] = useState(0)
   const [celebrating, setCelebrating] = useState(false)
   const controls = useRef<PlayerControls | null>(null)
+  usePageTitle(data?.lesson.title ?? 'Lesson')
 
   useEffect(() => {
     let active = true
@@ -104,19 +106,36 @@ export function LessonPage() {
   const { lesson, questions, progress, assignment } = data
   const idx = assignment?.lessons.findIndex((l) => l.id === lesson.id) ?? -1
   const next = assignment && idx >= 0 ? assignment.lessons[idx + 1] : undefined
+  const prev = assignment && idx > 0 ? assignment.lessons[idx - 1] : undefined
   const hasTranscript = Boolean(lesson.transcript?.trim())
 
   return (
     <div className="page">
-      <nav aria-label="Breadcrumb" className="crumbs">
-        {isTeacher ? <Link to={`/teach/lessons/${lesson.id}`}>← Edit lesson</Link> : <Link to="/">← Assignments</Link>}
-      </nav>
+      <Crumbs
+        items={
+          isTeacher
+            ? [
+                { label: 'Lessons', to: '/teach/courses' },
+                { label: lesson.title, to: `/teach/lessons/${lesson.id}` },
+                { label: 'Student preview' },
+              ]
+            : [{ label: 'Assignments', to: '/' }, { label: lesson.title }]
+        }
+      />
       <header className="lesson__head">
         {assignment && (
           <div className="lesson__where">
-            <p className="eyebrow">{assignment.title}</p>
+            <p className="eyebrow">
+              {assignment.title}
+              {idx >= 0 && (
+                <span className="lesson__count">
+                  {' '}
+                  · Lesson {idx + 1} of {assignment.lessons.length}
+                </span>
+              )}
+            </p>
             {idx >= 0 && assignment.lessons.length > 1 && (
-              <ol className="steps" aria-label={`Lesson ${idx + 1} of ${assignment.lessons.length}`}>
+              <ol className="steps" aria-label="Lessons in this assignment">
                 {assignment.lessons.map((l, i) => (
                   <li key={l.id}>
                     {i === idx ? (
@@ -211,15 +230,34 @@ export function LessonPage() {
           {lesson.check_enabled && <CheckQuestions questions={questions} />}
           {lesson.confusion_enabled && <ConfusionBox lessonId={lesson.id} userId={userId} disabled={isTeacher} />}
 
-          {next && (
-            <p className="next">
-              <Link className="nextlink" to={`/lesson/${next.id}?a=${assignment!.id}`}>
-                <span className="nextlink__label">next up</span>
-                <span className="nextlink__title">
-                  {next.title} <span className="nextlink__arrow" aria-hidden="true">→</span>
-                </span>
-              </Link>
-            </p>
+          {(next || prev) && !isTeacher && (
+            <nav className="pager" aria-label="Other lessons in this assignment">
+              {prev ? (
+                <Link className="nextlink nextlink--prev" to={`/lesson/${prev.id}?a=${assignment!.id}`}>
+                  <span className="nextlink__label">previous</span>
+                  <span className="nextlink__title">
+                    <span className="nextlink__arrow" aria-hidden="true">←</span> {prev.title}
+                  </span>
+                </Link>
+              ) : (
+                <span />
+              )}
+              {next ? (
+                <Link className="nextlink" to={`/lesson/${next.id}?a=${assignment!.id}`}>
+                  <span className="nextlink__label">next up</span>
+                  <span className="nextlink__title">
+                    {next.title} <span className="nextlink__arrow" aria-hidden="true">→</span>
+                  </span>
+                </Link>
+              ) : (
+                <Link className="nextlink" to="/">
+                  <span className="nextlink__label">that’s the last one</span>
+                  <span className="nextlink__title">
+                    Back to assignments <span className="nextlink__arrow" aria-hidden="true">→</span>
+                  </span>
+                </Link>
+              )}
+            </nav>
           )}
         </div>
 

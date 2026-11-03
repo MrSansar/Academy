@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { ErrorNote, Field } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { errorMessage, supabase } from '../../lib/supabase'
 
 export function JoinForm({ onJoined }: { onJoined: () => void }) {
@@ -43,6 +44,7 @@ export function JoinForm({ onJoined }: { onJoined: () => void }) {
 
 export function Join() {
   const [joined, setJoined] = useState(false)
+  usePageTitle('Join a class')
   return (
     <div className="page narrow">
       <h1>Join a class</h1>

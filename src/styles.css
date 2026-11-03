@@ -473,22 +473,12 @@ textarea:focus {
   font-size: 0.88rem;
   min-width: 0;
 }
-.who {
-  color: rgba(232, 237, 231, 0.8);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 40vw;
-}
 .role {
   margin-left: 0.4rem;
   font-size: 0.75rem;
   padding: 0.05rem 0.4rem;
   border: 1px solid rgba(232, 237, 231, 0.4);
   border-radius: 99px;
-}
-.account .linkish {
-  color: var(--chalk);
 }
 .bar :focus-visible {
   outline-color: var(--mark);
@@ -2171,16 +2161,6 @@ a.steps__n:hover {
 
 /* ---------- small screens ---------- */
 @media (max-width: 559px) {
-  .who {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-  }
-  .account {
-    gap: 0.5rem;
-  }
   .agenda__item {
     display: block;
   }
@@ -2234,12 +2214,12 @@ a.steps__n:hover {
     border-left: 2px solid var(--margin);
     pointer-events: none;
   }
-  .agenda__item {
+  .notebook .agenda__item {
     grid-template-columns: var(--mx) minmax(0, 1fr);
     column-gap: 0;
     margin-left: calc(-1 * var(--mx));
   }
-  .agenda__item .datetab {
+  .notebook .agenda__item .datetab {
     justify-self: start;
     margin-left: 0.6rem;
   }
@@ -2362,4 +2342,681 @@ a.steps__n:hover {
     position: sticky;
     top: 5rem;
   }
+}
+
+/* ======================================================================
+   Navigation: app bar, account menu, breadcrumbs
+   ====================================================================== */
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.nav__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 99px;
+  background: #f5d76e;
+  color: #1a2420;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.account {
+  position: relative;
+  gap: 0.4rem;
+}
+.account__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  max-width: 46vw;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(232, 237, 231, 0.3);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--chalk);
+  font-size: 0.9rem;
+}
+.account__btn:hover,
+.account__btn[aria-expanded='true'] {
+  background: rgba(232, 237, 231, 0.1);
+}
+.account__icon {
+  flex: none;
+  width: 19px;
+  height: 19px;
+}
+.account__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account__btn .role {
+  margin-left: 0;
+}
+.account__caret {
+  flex: none;
+  width: 11px;
+  height: 8px;
+  transition: transform 0.15s ease;
+}
+.account__btn[aria-expanded='true'] .account__caret {
+  transform: rotate(180deg);
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 40;
+  width: 16.5rem;
+  padding: 0.4rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lift);
+}
+.menu[hidden] {
+  display: none;
+}
+.menu__who {
+  display: grid;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.menu ul {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+}
+.menu li > a,
+.menu li > button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 42px;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font-size: 0.95rem;
+  text-align: left;
+  text-decoration: none;
+}
+.menu li > a:hover,
+.menu li > button:hover {
+  background: var(--code-bg);
+}
+.menu li svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.menu__state {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.bar .menu :focus-visible {
+  outline-color: var(--focus);
+}
+
+.crumbs ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0;
+  margin: 0;
+  padding: 0;
+}
+.crumbs li {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.crumbs li + li::before {
+  content: '/';
+  margin: 0 0.55rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.crumbs a {
+  color: var(--link);
+}
+.crumbs [aria-current='page'] {
+  color: var(--muted);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Lesson page: "Lesson 1 of 3" and the previous / next pager */
+.lesson__count {
+  color: var(--muted);
+}
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  margin-top: 2.2rem;
+  padding-top: 1.2rem;
+  border-top: 3px double var(--ink);
+}
+.pager > :last-child {
+  text-align: right;
+  margin-left: auto;
+}
+.nextlink--prev .nextlink__label {
+  color: var(--muted);
+}
+.nextlink--prev:hover .nextlink__arrow {
+  transform: translateX(-6px);
+}
+
+/* ======================================================================
+   Teacher pages
+   ====================================================================== */
+.pagehead {
+  margin: 0.2rem 0 1.4rem;
+}
+.pagehead h1 {
+  font-size: clamp(1.9rem, 5.5vw, 2.7rem);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.3rem;
+}
+.pagehead--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.8rem 1.5rem;
+}
+.pagehead__actions {
+  margin: 0 0 1.2rem;
+}
+.rulehead__end {
+  margin-left: auto;
+  font-family: 'Public Sans', system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variation-settings: normal;
+}
+.teach .section {
+  margin-top: 2.4rem;
+}
+.joincode--inline {
+  font-size: 0.95em;
+  letter-spacing: 0.06em;
+}
+
+/* Dashboard: assignments on the left, notes and classes on the right */
+.dash {
+  display: grid;
+  gap: 2.4rem;
+}
+.dash__side {
+  display: grid;
+  gap: 2.4rem;
+  align-content: start;
+}
+.dash__empty {
+  margin-top: 0.8rem;
+}
+.teach .agenda__title a {
+  color: inherit;
+  text-decoration: none;
+}
+.teach .agenda__title a:hover {
+  text-decoration: underline wavy var(--mark);
+  text-underline-offset: 5px;
+}
+.teach .agenda__title {
+  padding-right: 0;
+}
+.classlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.classlist__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem 0.8rem;
+  min-height: 48px;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  text-decoration: none;
+}
+.classlist__row:hover .hl {
+  text-decoration: underline;
+}
+.classlist__meta {
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.setup__steps {
+  margin: 1rem 0 0;
+  padding-left: 1.4rem;
+  max-width: 40rem;
+}
+.setup__steps li {
+  padding: 0.5rem 0 0.5rem 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Prep bar: ready (green) · started (hatched amber) · not opened (empty) */
+.prep {
+  margin: 0.7rem 0 0.2rem;
+  max-width: 34rem;
+}
+.prep__bar {
+  display: flex;
+  height: 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.prep__ready {
+  background: var(--pen-green);
+}
+.prep__started {
+  background: repeating-linear-gradient(-45deg, var(--mark) 0 3px, transparent 3px 6px);
+}
+.prep__legend {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+}
+.prep__n {
+  font-weight: 800;
+}
+.prep__n--ready {
+  color: var(--pen-green);
+}
+.prep__n--started {
+  color: var(--mark-ink);
+}
+.nudge {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+.nudge__label {
+  font-weight: 700;
+}
+.nudge--soon .nudge__label {
+  color: var(--mark-ink);
+}
+.nudge--urgent .nudge__label {
+  color: var(--pen-red);
+}
+
+/* Notes board: students' sticky notes */
+.notes-board {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1.1rem;
+}
+.notes-board--stack {
+  grid-template-columns: 1fr;
+}
+.notes-board--inline {
+  margin: 0.4rem 0 0.6rem 2.4rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 22rem));
+}
+.notecard {
+  --tilt: 0deg;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem 0.8rem;
+  color: #2a2414;
+  background: #fde68a;
+  border-radius: 2px 2px 14px 2px / 2px 2px 7px 2px;
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.08),
+    0 12px 18px -14px rgba(60, 40, 0, 0.55);
+  transform: rotate(var(--tilt));
+}
+.notecard__new {
+  position: absolute;
+  top: -0.55rem;
+  right: 0.6rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #b8322a;
+  border-radius: 4px;
+  transform: rotate(4deg);
+}
+.notecard__body {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.notecard__meta {
+  display: grid;
+  gap: 0.15rem;
+  margin: auto 0 0;
+  font-size: 0.82rem;
+  color: #5a4a1f;
+}
+.notecard a {
+  color: #1f3f99;
+}
+.notecard__who {
+  font-weight: 700;
+}
+.notecard .hl {
+  font-size: 0.76rem;
+  margin-left: 0.2rem;
+}
+.notecard :focus-visible {
+  outline-color: #2a2414;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.8rem 1.4rem;
+  margin: 0 0 0.9rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.filters__field {
+  flex: 1 1 12rem;
+  max-width: 18rem;
+}
+.filters__check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+}
+.filters__check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--link);
+}
+.filters__check label {
+  margin: 0;
+}
+.notegroup {
+  margin-top: 2rem;
+}
+
+/* Row lists: classes, courses, earlier assignments */
+.rowlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 3px double var(--ink);
+}
+.rowlist__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem 1.2rem;
+  min-height: 64px;
+  padding: 0.9rem 0.2rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  text-decoration: none;
+}
+.rowlist__row:hover {
+  background: var(--code-bg);
+}
+.rowlist__row:hover .rowlist__go {
+  transform: translateX(4px);
+}
+.rowlist__main {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.rowlist__title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variation-settings: 'SOFT' 100, 'WONK' 1;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+.rowlist__sub {
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.rowlist__side {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  font-size: 0.88rem;
+}
+.rowlist__strong {
+  font-weight: 800;
+}
+.rowlist__go {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 1.2rem;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.rowlist--tight .rowlist__row {
+  min-height: 52px;
+  padding: 0.6rem 0.2rem;
+}
+.rowlist--tight .rowlist__title {
+  font-size: 1.02rem;
+}
+.newform {
+  margin: 0 0 1.4rem;
+}
+
+/* Student progress table on the class page */
+.tablewrap--flat {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  border-top: 3px double var(--ink);
+}
+.roster--progress thead th {
+  background: transparent;
+  min-width: 0;
+  white-space: nowrap;
+}
+.roster--progress tbody th {
+  font-weight: 600;
+  min-width: 11rem;
+}
+.roster--progress td,
+.roster--progress th {
+  vertical-align: middle;
+  border-bottom-color: var(--rule);
+}
+.minibar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 4.5rem;
+  height: 9px;
+  margin-right: 0.5rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.minibar > span {
+  display: block;
+  height: 100%;
+  background: var(--pen-green);
+}
+.settings .joincode {
+  margin-top: 0.6rem;
+}
+
+/* Student page */
+.stats__text {
+  font-family: 'Public Sans', system-ui, sans-serif !important;
+  font-size: 1rem !important;
+}
+.loglist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.log {
+  padding: 1.2rem 0 0.8rem;
+  border-bottom: 1px solid var(--rule);
+}
+.log__title {
+  font-size: 1.25rem;
+  margin: 0;
+}
+.log__title a {
+  color: inherit;
+}
+.log__due {
+  margin: 0.15rem 0 0.5rem;
+}
+.log__lessons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.log__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.2rem 0.65rem;
+  padding: 0.45rem 0;
+}
+.log__name {
+  font-weight: 500;
+}
+.log__status,
+.log__quiz {
+  grid-column: 2;
+  font-size: 0.88rem;
+}
+.log__quiz:empty {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .log__row {
+    grid-template-columns: auto minmax(0, 1fr) 15rem 9.5rem;
+  }
+  .log__status,
+  .log__quiz {
+    grid-column: auto;
+  }
+  .log__quiz:empty {
+    display: block;
+  }
+  .rowlist__side {
+    grid-column: auto;
+    justify-content: flex-end;
+    text-align: right;
+  }
+  .rowlist__go {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .rowlist__row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+}
+@media (min-width: 1000px) {
+  .dash {
+    grid-template-columns: minmax(0, 1.65fr) minmax(18rem, 1fr);
+    gap: 3rem;
+  }
+}
+@media (max-width: 559px) {
+  .account__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .account__btn .role {
+    display: none;
+  }
+  .notes-board--inline {
+    margin-left: 0;
+  }
+  .crumbs [aria-current='page'] {
+    max-width: 12rem;
+  }
+}
+
+/* dark: notes stay paper-yellow, the bar badge stays chalk-yellow */
+:root[data-theme='dark'] .prep__ready,
+:root[data-theme='dark'] .minibar > span {
+  background: var(--pen-green);
+}
+
+/* Missed lessons: red figure, no fill */
+.cell--missed {
+  color: var(--pen-red);
+  font-weight: 800;
+}
+/* Summary figures on teacher pages: a plain line, not boxes */
+.teach .stats {
+  gap: 0;
+  margin: 0 0 1.6rem;
+}
+.teach .stats li {
+  background: none !important;
+  border: 0;
+  border-radius: 0;
+  padding: 0.1rem 1.1rem;
+  border-left: 1px solid var(--rule);
+}
+.teach .stats li:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.teach .stats--urgent,
+.teach .stats--soon {
+  color: var(--pen-red);
+}
+@media (max-width: 559px) {
+  .notes-board--stack > :nth-child(n + 4) {
+    display: none;
+  }
+  .teach .stats li {
+    padding: 0.1rem 0.8rem;
+  }
+}
+/* Notes stay yellow paper in dark mode, so their class labels keep daytime colours. */
+:root[data-theme='dark'] .notecard .hl {
+  color: #2a2414;
+  background: var(--hl);
 }

@@ -39,12 +39,23 @@ wrong one. “What was confusing?” is a sticky note. *My progress* is a gold-s
 theme turns the whole page into a chalkboard (it follows the OS until you pick one with the moon
 button). Animations are off for anyone who asks the OS for reduced motion. Still no streaks, points, badges or leaderboards: students only ever see their own progress.
 
-**The teacher** gets, per assignment, a students × lessons table (not opened / % watched /
-complete, with “not opened” turning amber within 3 days of class and red within 24 hours), first-try
-% correct per check question with the answer distribution, confusion notes newest first, and CSV
-export (per assignment, or the whole class). The editor creates courses, lessons, classes and
-assignments, reorders lessons, sets due dates, and toggles questions / the confusion box per lesson.
-Lessons over 10 minutes get a soft warning.
+**Navigation.** Students have two sections, *Assignments* and *My progress*; joining another class,
+the theme and signing out live in the name menu at the top right. A lesson page says “Lesson 2 of 3”,
+has numbered tabs for the other lessons, and previous / next links at the bottom. Teachers have four
+sections, which stay highlighted on every page inside them:
+
+| Section | What's there |
+| --- | --- |
+| **Dashboard** | What's due this week across all classes: for each assignment, a ready / started / not opened bar and the names of students who haven't opened it (amber within 3 days of class, red within 24 hours). The newest confusion notes. Quick links to each class. |
+| **Classes** | Every class with its join code and how many are ready for the next assignment. A class page lists its assignments (with the same bar) and a student table: lessons done, lessons not done before class, last active, notes. Each name opens that **student's page**: every assigned lesson with % watched, when it was finished (and whether late), first-try quiz score, and their notes on it. |
+| **Lessons** | Courses and their lessons (the editor). |
+| **Notes** | Every “What was confusing?” note, newest first, filterable by class and lesson, optionally grouped by lesson. Notes that arrived since you last opened this page are marked **New**, and their count shows next to *Notes* in the bar. (What you've read is remembered in this browser, so another device starts fresh.) |
+
+Every teacher page has breadcrumbs (e.g. *Classes / Physics 101 / Ana Lopez*). The per-assignment
+report still has the students × lessons table, first-try % correct per check question with the
+answer distribution, the notes for its lessons, and CSV export (per assignment, or the whole class).
+The editor creates courses, lessons, classes and assignments, reorders lessons, sets due dates, and
+toggles questions / the confusion box per lesson. Lessons over 10 minutes get a soft warning.
 
 ### How watch tracking works
 
@@ -101,7 +112,7 @@ The project `chalkline` (Tokyo, free tier) already has the schema applied. To se
    ```sql
    update public.profiles set role = 'teacher' where email = 'you@example.com';
    ```
-3. Sign in on the site. You’ll land on **Classes & courses**.
+3. Sign in on the site. You’ll land on the **Dashboard**, which walks you through the first steps.
 
 Students can’t change their own role: the `role` column isn’t writable through the API.
 
@@ -109,7 +120,7 @@ Students can’t change their own role: the `role` column isn’t writable throu
 
 1. Upload the video to YouTube as **Unlisted**, and make sure **Allow embedding** is on (YouTube
    Studio → video → Show more → License and distribution). Add or auto-generate captions.
-2. On the site: **Classes & courses → New course** (once), then **Lessons → New lesson**.
+2. On the site: **Lessons → New course** (once), open the course, then **New lesson**.
 3. Paste the YouTube link. The preview loads and the length fills in automatically. Videos over
    10 minutes show a reminder that ~6-minute videos get watched more.
 4. Add a short summary and, optionally, a transcript. One cue per line, starting with a time:
@@ -124,7 +135,7 @@ Students can’t change their own role: the `role` column isn’t writable throu
 
 Then put it in front of students:
 
-- **New class** under the course gives you a join code (e.g. `ABCD-2345`) to share. **New code**
+- **Classes → New class** (pick the course it takes lessons from) gives you a join code (e.g. `ABCD-2345`) to share. **New code**
   replaces it; **Archive class** stops new joins.
 - On the class page, **New assignment**: title, when class starts (students should finish before
   this), and the lessons in order. Students only see a lesson once it’s in an assignment for their
@@ -177,7 +188,8 @@ database. Stop the stack with `supabase stop`.
 npm test
 ```
 Unit tests: interval merging, seek detection, 2× playback, throttled tabs, transcript and YouTube
-link parsing, CSV escaping, greetings/initials/class colours.
+link parsing, CSV escaping, greetings/class colours/dates, and the teacher dashboard maths (who's
+ready, lessons missed, first-try quiz scores, which class a note belongs to).
 
 ```bash
 supabase test db

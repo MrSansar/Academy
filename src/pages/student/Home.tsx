@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
 import { ClassMark, DateTab, PenArrow, Stamp, TodoRow } from '../../components/Notebook'
 import { ErrorNote, Loading } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { greeting, tipOfTheDay } from '../../lib/fun'
 import { dayPhrase, formatDue, formatMinutes, formatRelative } from '../../lib/format'
 import { loadMyAssignments, loadMyClasses, loadMyProgress, type MyClass, type StudentAssignment } from '../../lib/studentData'
@@ -15,6 +16,7 @@ const todayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long', month:
 export function Home() {
   const { session, profile } = useAuth()
   const userId = session!.user.id
+  usePageTitle('Assignments')
   const [assignments, setAssignments] = useState<StudentAssignment[] | null>(null)
   const [classes, setClasses] = useState<MyClass[]>([])
   const [progress, setProgress] = useState<Map<string, LessonProgress>>(new Map())

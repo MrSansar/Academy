@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
-import { ErrorNote, Field, Loading, TextArea } from '../../components/ui'
+import { useNavigate, useParams } from 'react-router'
+import { Crumbs, ErrorNote, Field, Loading, TextArea } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { formatClock, formatMinutes, fromLocalInput, toLocalInput } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import { LONG_LESSON_SECONDS } from './CourseLessons'
@@ -27,6 +28,7 @@ export function AssignmentEditor() {
   const [pick, setPick] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  usePageTitle(isNew ? 'New assignment' : 'Edit assignment')
 
   useEffect(() => {
     ;(async () => {
@@ -115,9 +117,15 @@ export function AssignmentEditor() {
 
   return (
     <div className="page narrow">
-      <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to={`/teach/classes/${classId}`}>← {className}</Link>
-      </nav>
+      <Crumbs
+        items={[
+          { label: 'Classes', to: '/teach/classes' },
+          { label: className || 'Class', to: `/teach/classes/${classId}` },
+          ...(isNew
+            ? [{ label: 'New assignment' }]
+            : [{ label: title || 'Assignment', to: `/teach/assignments/${params.assignmentId}` }, { label: 'Edit' }]),
+        ]}
+      />
       <h1>{isNew ? 'New assignment' : 'Edit assignment'}</h1>
       <form onSubmit={save} className="card">
         <Field label="Title" required maxLength={200} placeholder="e.g. Before Thursday: vectors" value={title} onChange={(e) => setTitle(e.target.value)} />

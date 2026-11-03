@@ -1,16 +1,65 @@
-import { useEffect, useRef, type ReactNode } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
+import { useNotesSeenAt } from '../lib/notesSeen'
+import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import { DoodleField } from './Doodles'
 import { SunMoon } from './Notebook'
 
+interface NavItem {
+  to: string
+  label: string
+  /** Paths that belong to this section, so it stays highlighted on the pages inside it. */
+  match: (path: string) => boolean
+  badge?: number
+}
+
+const STUDENT_NAV: NavItem[] = [
+  { to: '/', label: 'Assignments', match: (p) => p === '/' || p.startsWith('/lesson/') },
+  { to: '/progress', label: 'My progress', match: (p) => p.startsWith('/progress') },
+]
+
+function teacherNav(newNotes: number): NavItem[] {
+  return [
+    { to: '/teach', label: 'Dashboard', match: (p) => p === '/teach' || p === '/teach/' },
+    {
+      to: '/teach/classes',
+      label: 'Classes',
+      match: (p) => p.startsWith('/teach/classes') || p.startsWith('/teach/assignments'),
+    },
+    {
+      to: '/teach/courses',
+      label: 'Lessons',
+      match: (p) => p.startsWith('/teach/courses') || p.startsWith('/teach/lessons') || p.startsWith('/lesson/'),
+    },
+    { to: '/teach/notes', label: 'Notes', match: (p) => p.startsWith('/teach/notes'), badge: newNotes },
+  ]
+}
+
+/** How many notes arrived since the teacher last opened the Notes page (re-checked on navigation). */
+function useNewNotesCount(enabled: boolean, path: string): number {
+  const seenAt = useNotesSeenAt()
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    if (!enabled) return
+    let active = true
+    let q = supabase.from('confusion_notes').select('id', { count: 'exact', head: true })
+    if (seenAt) q = q.gt('created_at', seenAt)
+    void q.then(({ count: n }) => active && setCount(n ?? 0))
+    return () => {
+      active = false
+    }
+  }, [enabled, seenAt, path])
+  return enabled ? count : 0
+}
+
 export function Layout({ children }: { children: ReactNode }) {
-  const { profile, isTeacher, signOut } = useAuth()
-  const [theme, setTheme] = useTheme()
+  const { isTeacher } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
+  const newNotes = useNewNotesCount(isTeacher, location.pathname)
+  const items = isTeacher ? teacherNav(newNotes) : STUDENT_NAV
 
   // Move focus to the page on navigation so screen-reader and keyboard users start at the top.
   const first = useRef(true)
@@ -30,49 +79,117 @@ export function Layout({ children }: { children: ReactNode }) {
       </a>
       <header className="bar">
         <div className="bar__in">
-          <NavLink to={isTeacher ? '/teach' : '/'} className="mark" aria-label="Chalkline home">
+          <Link to={isTeacher ? '/teach' : '/'} className="mark" aria-label="Chalkline home">
             Chalk<span>line</span>
-          </NavLink>
+          </Link>
           <nav aria-label="Main" className="nav">
-            {isTeacher ? (
-              <NavLink to="/teach" end>Classes &amp; courses</NavLink>
-            ) : (
-              <>
-                <NavLink to="/" end>Assignments</NavLink>
-                <NavLink to="/progress">My progress</NavLink>
-                <NavLink to="/join">Join a class</NavLink>
-              </>
-            )}
+            {items.map((it) => {
+              const here = it.match(location.pathname)
+              return (
+                <Link key={it.to} to={it.to} aria-current={here ? 'page' : undefined}>
+                  {it.label}
+                  {it.badge ? (
+                    <span className="nav__badge">
+                      {it.badge > 99 ? '99+' : it.badge}
+                      <span className="visually-hidden"> new</span>
+                    </span>
+                  ) : null}
+                </Link>
+              )
+            })}
           </nav>
-          <div className="account">
-            <button
-              type="button"
-              className="themebtn"
-              aria-label="Dark chalkboard theme"
-              aria-pressed={theme === 'dark'}
-              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            >
-              <SunMoon dark={theme === 'dark'} />
-            </button>
-            <span className="who" title={profile?.email}>
-              {profile?.full_name || profile?.email}
-              {isTeacher && <span className="role">Teacher</span>}
-            </span>
-            <button
-              type="button"
-              className="linkish"
-              onClick={() => void signOut().then(() => navigate('/signin', { replace: true }))}
-            >
-              Sign out
-            </button>
-          </div>
+          <AccountMenu />
         </div>
       </header>
       <main id="main" ref={mainRef} tabIndex={-1}>
         {children}
       </main>
     </>
+  )
+}
+
+/** Name button that opens the less frequent things: join a class, theme, sign out. */
+function AccountMenu() {
+  const { profile, isTeacher, signOut } = useAuth()
+  const [theme, setTheme] = useTheme()
+  const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+  const id = useId()
+  const wrap = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const name = profile?.full_name || profile?.email || 'Account'
+
+  // Close on outside click or Escape (and when an item is chosen, below).
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        button.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div className="account" ref={wrap}>
+      <button
+        ref={button}
+        type="button"
+        className="account__btn"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <svg className="account__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4s6.3 1.8 7.5 5.4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+        <span className="account__name">{name}</span>
+        {isTeacher && <span className="role">Teacher</span>}
+        <svg className="account__caret" viewBox="0 0 12 8" aria-hidden="true" focusable="false">
+          <path d="M1.5 1.5L6 6l4.5-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+        <span className="visually-hidden"> account menu</span>
+      </button>
+      <div id={id} className="menu" hidden={!open}>
+        <p className="menu__who">
+          <strong>{name}</strong>
+          {profile?.email && profile.email !== name && <span className="muted small">{profile.email}</span>}
+        </p>
+        <ul>
+          {!isTeacher && (
+            <li>
+              <Link to="/join" onClick={() => setOpen(false)}>
+                Join another class
+              </Link>
+            </li>
+          )}
+          <li>
+            <button type="button" aria-pressed={theme === 'dark'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              <SunMoon dark={theme === 'dark'} />
+              Dark chalkboard theme
+              <span className="menu__state" aria-hidden="true">
+                {theme === 'dark' ? 'On' : 'Off'}
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" onClick={() => void signOut().then(() => navigate('/signin', { replace: true }))}>
+              Sign out
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
   )
 }
 

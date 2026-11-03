@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ErrorNote, Loading } from '../../components/ui'
+import { Crumbs, ErrorNote, Loading } from '../../components/ui'
+import { usePageTitle } from '../../lib/pageTitle'
 import { formatDue, formatRelative, formatShort, pct } from '../../lib/format'
 import { errorMessage } from '../../lib/supabase'
 import {
@@ -10,23 +11,17 @@ import {
   questionStats,
   type AssignmentReport,
 } from '../../lib/teacherData'
+import { studentPath, urgency } from '../../lib/teacherOverview'
 import { choicesOf, lessonStatus, type LessonProgress } from '../../lib/types'
 
-const HOUR = 3_600_000
 
-/** How loudly to flag "not opened yet": amber within 3 days of class, red within 24 h or after. */
-function urgency(dueAt: string): 'none' | 'soon' | 'urgent' {
-  const left = new Date(dueAt).getTime() - Date.now()
-  if (left <= 24 * HOUR) return 'urgent'
-  if (left <= 72 * HOUR) return 'soon'
-  return 'none'
-}
 
 export function AssignmentDashboard() {
   const { assignmentId = '' } = useParams()
   const [report, setReport] = useState<AssignmentReport | null>(null)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  usePageTitle(report?.assignment.title ?? 'Assignment')
 
   useEffect(() => {
     loadAssignmentReport(assignmentId)
@@ -53,9 +48,13 @@ export function AssignmentDashboard() {
 
   return (
     <div className="page page--wide">
-      <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to={`/teach/classes/${assignment.class_id}`}>← {report.className}</Link>
-      </nav>
+      <Crumbs
+        items={[
+          { label: 'Classes', to: '/teach/classes' },
+          { label: report.className, to: `/teach/classes/${assignment.class_id}` },
+          { label: assignment.title },
+        ]}
+      />
       <div className="lede lede--row">
         <div>
           <h1>{assignment.title}</h1>
@@ -109,7 +108,7 @@ export function AssignmentDashboard() {
                 {perStudent.map(({ s, done }) => (
                   <tr key={s.id}>
                     <th scope="row">
-                      {s.name}
+                      <Link to={studentPath(assignment.class_id, s.id)}>{s.name}</Link>
                       <span className="email">{s.email}</span>
                     </th>
                     {lessons.map((l) => (
@@ -203,7 +202,10 @@ export function AssignmentDashboard() {
                         <li key={n.id}>
                           <p>{n.body}</p>
                           <p className="muted small">
-                            {students.find((s) => s.id === n.student_id)?.name ?? 'Student'} ·{' '}
+                            <Link to={studentPath(assignment.class_id, n.student_id)}>
+                              {students.find((s) => s.id === n.student_id)?.name ?? 'Student'}
+                            </Link>{' '}
+                            ·{' '}
                             <time dateTime={n.created_at}>{formatShort(n.created_at)}</time>
                           </p>
                         </li>
