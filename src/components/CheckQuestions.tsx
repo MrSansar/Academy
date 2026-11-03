@@ -3,30 +3,25 @@ import { burstFrom } from '../lib/confetti'
 import { cheerFor, nudgeFor } from '../lib/fun'
 import { errorMessage, supabase } from '../lib/supabase'
 import { choicesOf, type Question } from '../lib/types'
+import { Tick } from './Notebook'
 
 interface Feedback {
   correct: boolean
   explanation: string
 }
 
-/** End-of-lesson practice questions. Not graded; students can retry as often as they like. */
+const LETTERS = 'ABCDEFGH'
+
+/** End-of-lesson practice questions, styled as an answer sheet. Not graded; retry as often as you like. */
 export function CheckQuestions({ questions }: { questions: Question[] }) {
   const [solved, setSolved] = useState<Set<string>>(new Set())
   if (questions.length === 0) return null
   const allSolved = questions.every((q) => solved.has(q.id))
   return (
-    <section className="card check" aria-labelledby="check-h">
-      <div className="check__head">
-        <h2 id="check-h">
-          <span aria-hidden="true">🧠 </span>Check yourself
-        </h2>
-        <p className="check__tally" aria-hidden="true">
-          {questions.map((q) => (
-            <span key={q.id} className={solved.has(q.id) ? 'pip pip--on' : 'pip'} />
-          ))}
-        </p>
-      </div>
-      <p className="muted">Practice, not a grade. Try again as many times as you like.</p>
+    <section className="sheet" aria-labelledby="check-h">
+      <h2 id="check-h" className="rulehead">
+        Check yourself <span className="rulehead__aside">practice, not a grade</span>
+      </h2>
       {questions.map((q, i) => (
         <QuestionItem
           key={q.id}
@@ -36,8 +31,8 @@ export function CheckQuestions({ questions }: { questions: Question[] }) {
         />
       ))}
       {allSolved && (
-        <p className="check__done" role="status">
-          <span aria-hidden="true">🎉</span> You got every question. You’re ready to talk about this in class.
+        <p className="sheet__done" role="status">
+          All {questions.length} right. You’re ready to talk about this in class.
         </p>
       )}
     </section>
@@ -66,48 +61,56 @@ function QuestionItem({ q, n, onCorrect }: { q: Question; n: number; onCorrect: 
     if (!row) return
     setFeedback({ correct: row.is_correct, explanation: row.explanation })
     if (row.is_correct) {
-      burstFrom(buttonRef.current, { count: 40, power: 7 })
+      burstFrom(buttonRef.current, { count: 36, power: 7 })
       onCorrect()
-    } else setShake((n) => n + 1)
+    } else setShake((k) => k + 1)
   }
 
+  const right = feedback?.correct === true
+  const wrong = feedback?.correct === false
+  // Alternating between two shake classes restarts the animation on every wrong answer.
+  const cls = ['q', right && 'q--right', wrong && 'q--wrong', shake > 0 && `q--shake${shake % 2}`].filter(Boolean).join(' ')
+
   return (
-    <form
-      // Alternating between two shake classes restarts the animation on every wrong answer.
-      className={`question${feedback?.correct ? ' question--right' : ''}${shake ? ` question--shake${shake % 2}` : ''}`}
-      onSubmit={submit}
-    >
+    <form className={cls} onSubmit={submit}>
       <fieldset>
-        <legend>
-          <span className="question__n">{n}.</span> {q.prompt}
+        <legend className="q__prompt">
+          <span className="q__n">{n}</span>
+          <span>{q.prompt}</span>
+          {right && <Tick className="q__tick" />}
         </legend>
-        {choices.map((c, i) => (
-          <label key={i} className="choice">
-            <input
-              type="radio"
-              name={name}
-              value={i}
-              checked={choice === i}
-              onChange={() => {
-                setChoice(i)
-                setFeedback(null)
-              }}
-            />
-            <span>{c}</span>
-          </label>
-        ))}
+        <div className="q__choices">
+          {choices.map((c, i) => (
+            <label key={i} className="bubble">
+              <input
+                type="radio"
+                name={name}
+                value={i}
+                checked={choice === i}
+                onChange={() => {
+                  setChoice(i)
+                  setFeedback(null)
+                }}
+              />
+              <span className="bubble__letter" aria-hidden="true">
+                {LETTERS[i] ?? i + 1}
+              </span>
+              <span className="bubble__text">{c}</span>
+            </label>
+          ))}
+        </div>
       </fieldset>
-      <div className="question__actions">
+      <div className="q__actions">
         <button ref={buttonRef} className="btn btn--small" disabled={busy}>
-          {feedback && !feedback.correct ? 'Check again' : 'Check'}
+          {wrong ? 'Check again' : 'Check'}
         </button>
-        <div aria-live="polite" className="question__feedback">
+        <div aria-live="polite" className="q__feedback">
           {feedback && (
-            <p className={feedback.correct ? 'fb fb--ok' : 'fb fb--no'}>
-              <strong>
-                {feedback.correct ? `✓ ${cheerFor(q.id + choice)}` : `✗ ${nudgeFor(q.id + choice)} Try another answer.`}
+            <p className={right ? 'verdict verdict--right' : 'verdict verdict--wrong'}>
+              <strong className="verdict__word">
+                {right ? cheerFor(q.id + choice) : `${nudgeFor(q.id + choice)} Try another answer.`}
               </strong>{' '}
-              {feedback.explanation}
+              <span className="verdict__why">{feedback.explanation}</span>
             </p>
           )}
           {error && <p className="error">{error}</p>}

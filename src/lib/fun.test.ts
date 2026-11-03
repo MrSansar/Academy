@@ -1,24 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { CLASS_TINTS, cheerFor, classTint, greeting, initials, tipOfTheDay } from './fun'
+import { calendarDaysBetween, dayPhrase } from './format'
+import { CLASS_TINTS, cheerFor, classTint, greeting, tilt, tipOfTheDay } from './fun'
 
 describe('greeting', () => {
   it('follows the clock', () => {
-    expect(greeting(8).text).toBe('Good morning')
-    expect(greeting(13).text).toBe('Good afternoon')
-    expect(greeting(19).text).toBe('Good evening')
-    expect(greeting(23).emoji).toBe('🌙')
-    expect(greeting(2).emoji).toBe('🌙')
-  })
-})
-
-describe('initials', () => {
-  it('uses first and last name', () => {
-    expect(initials('Ada King Lovelace')).toBe('AL')
-    expect(initials('  grace  ')).toBe('G')
-  })
-  it('falls back to the email, then a placeholder', () => {
-    expect(initials('', 'sam@example.com')).toBe('S')
-    expect(initials(null, null)).toBe('?')
+    expect(greeting(8)).toBe('Good morning')
+    expect(greeting(13)).toBe('Good afternoon')
+    expect(greeting(19)).toBe('Good evening')
+    expect(greeting(23)).toBe('Still up')
+    expect(greeting(2)).toBe('Still up')
   })
 })
 
@@ -34,10 +24,34 @@ describe('classTint', () => {
   })
 })
 
+describe('tilt', () => {
+  it('stays within the limit and is stable', () => {
+    for (let i = 0; i < 50; i++) {
+      const t = tilt(`s${i}`, 4)
+      expect(Math.abs(t)).toBeLessThanOrEqual(4)
+      expect(tilt(`s${i}`, 4)).toBe(t)
+    }
+  })
+})
+
 describe('cheers and tips', () => {
   it('are deterministic', () => {
     expect(cheerFor('q1')).toBe(cheerFor('q1'))
-    const d = new Date('2026-11-03T12:00:00Z')
-    expect(tipOfTheDay(d)).toBe(tipOfTheDay(new Date('2026-11-03T13:00:00Z')))
+    expect(tipOfTheDay(new Date('2026-11-03T12:00:00Z'))).toBe(tipOfTheDay(new Date('2026-11-03T13:00:00Z')))
+  })
+})
+
+describe('dayPhrase', () => {
+  const now = new Date(2026, 10, 3, 9, 0) // Tue Nov 3, local time
+  it('says today / tomorrow with a time', () => {
+    expect(dayPhrase(new Date(2026, 10, 3, 15, 15).toISOString(), now)).toMatch(/^today at /)
+    expect(dayPhrase(new Date(2026, 10, 4, 0, 30).toISOString(), now)).toMatch(/^tomorrow at /)
+  })
+  it('uses the weekday within a week, then the date', () => {
+    expect(dayPhrase(new Date(2026, 10, 6, 10, 0).toISOString(), now)).toMatch(/^on \S+day$/)
+    expect(dayPhrase(new Date(2026, 10, 20, 10, 0).toISOString(), now)).toMatch(/^on \D+ 20$/)
+  })
+  it('counts calendar days, not 24-hour blocks', () => {
+    expect(calendarDaysBetween(new Date(2026, 10, 3, 23, 50), new Date(2026, 10, 4, 0, 10))).toBe(1)
   })
 })

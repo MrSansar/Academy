@@ -28,17 +28,6 @@ export function Squiggle({ className }: DoodleProps) {
   )
 }
 
-export function Rocket({ className }: DoodleProps) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} {...common}>
-      <path d="M38 8c9 1 17 9 18 18-4 10-13 19-23 23L15 31C19 21 28 12 38 8z" />
-      <circle cx="40" cy="24" r="5" />
-      <path d="M15 31l-7 2 6-10 9-1M33 49l-2 7 10-6 1-9" />
-      <path d="M19 45c-4 1-7 4-9 9 5-2 8-5 9-9z" />
-    </svg>
-  )
-}
-
 export function Lightbulb({ className }: DoodleProps) {
   return (
     <svg viewBox="0 0 48 48" className={className} {...common}>
@@ -67,17 +56,7 @@ export function Atom({ className }: DoodleProps) {
   )
 }
 
-export function Sleepy({ className }: DoodleProps) {
-  return (
-    <svg viewBox="0 0 96 64" className={className} {...common}>
-      <path d="M10 52c4-18 18-28 38-28s34 10 38 28z" />
-      <path d="M32 40c2 2 6 2 8 0M56 40c2 2 6 2 8 0M44 47c2 1 6 1 8 0" />
-      <path d="M66 8h10l-10 10h10M80 2h6l-6 6h6" strokeWidth={2.5} />
-    </svg>
-  )
-}
-
-/** Doodles scattered across a chalkboard panel (sign-in page, home hero). */
+/** Chalk doodles scattered across the sign-in board. */
 export function DoodleField() {
   return (
     <div className="doodles" aria-hidden="true">

@@ -41,9 +41,9 @@ export function ConfusionBox({ lessonId, userId, disabled }: { lessonId: string;
   }
 
   return (
-    <section className="card confusion" aria-labelledby={`${id}-h`}>
-      <h2 id={`${id}-h`}>
-        <span aria-hidden="true">💬 </span>What was confusing?
+    <section className="sticky" aria-labelledby={`${id}-h`}>
+      <h2 id={`${id}-h`} className="sticky__title">
+        What was confusing?
       </h2>
       <form onSubmit={submit}>
         <label htmlFor={id} className="hint">
@@ -51,7 +51,8 @@ export function ConfusionBox({ lessonId, userId, disabled }: { lessonId: string;
         </label>
         <textarea
           id={id}
-          rows={3}
+          rows={4}
+          placeholder="e.g. I got lost around 2:10 when…"
           maxLength={2000}
           value={body}
           disabled={disabled}
@@ -61,11 +62,11 @@ export function ConfusionBox({ lessonId, userId, disabled }: { lessonId: string;
           }}
         />
         <div className="row">
-          <button className="btn btn--small" disabled={busy || disabled}>
+          <button className="btn btn--small btn--ink" disabled={busy || disabled}>
             {busy ? 'Sending…' : 'Send to my teacher'}
           </button>
           <span aria-live="polite" className="ok">
-            {sent && '💌 Sent. Thank you, that really helps.'}
+            {sent && 'Sent. Thank you, that really helps.'}
           </span>
         </div>
         {error && <p className="error" role="alert">{error}</p>}

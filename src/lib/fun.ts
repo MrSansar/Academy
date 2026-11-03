@@ -4,17 +4,17 @@
  */
 
 /** "Good morning", "Good afternoon", … for the viewer's local hour. */
-export function greeting(hour: number): { text: string; emoji: string } {
-  if (hour < 5) return { text: 'Burning the midnight chalk', emoji: '🌙' }
-  if (hour < 12) return { text: 'Good morning', emoji: '☀️' }
-  if (hour < 17) return { text: 'Good afternoon', emoji: '🌤️' }
-  if (hour < 22) return { text: 'Good evening', emoji: '🌆' }
-  return { text: 'Late-night study session', emoji: '🌙' }
+export function greeting(hour: number): string {
+  if (hour < 5) return 'Still up'
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  if (hour < 22) return 'Good evening'
+  return 'Still up'
 }
 
 const CHEERS = ['Nailed it!', 'Spot on!', 'Yes! That’s it.', 'Exactly right.', 'You got it!', 'Correct!'] as const
 const NUDGES = ['Not quite.', 'Close, but no.', 'Almost.', 'Not this one.'] as const
-const COMPLETE = ['Lesson complete!', 'Done and dusted!', 'That’s a wrap!', 'Lesson in the bag!'] as const
+const COMPLETE = ['That’s a wrap!', 'Done and dusted!', 'Lesson in the bag!', 'Nice work!'] as const
 
 /** Deterministic pick so a given question always gets the same line (stable across re-renders). */
 function pick<T>(list: readonly T[], seed: string): T {
@@ -25,14 +25,14 @@ export const cheerFor = (seed: string) => pick(CHEERS, seed)
 export const nudgeFor = (seed: string) => pick(NUDGES, seed)
 export const completeLineFor = (seed: string) => pick(COMPLETE, seed)
 
-/** Short tip for the home page, one per day so it doesn't flicker on reload. */
+/** Short study tip, one per day so it doesn't change on every reload. */
 const TIPS = [
-  'Pause and predict what comes next before you hit play again.',
+  'Pause and predict what comes next before you press play again.',
   'Watching at 1.25× is fine. Rewinding the tricky bit is better.',
   'Write down one question to ask in class.',
   'Explain the idea out loud to an imaginary friend. If you stumble, rewatch that part.',
-  'Click a transcript line to jump straight to that moment.',
-  'Got confused? Tell your teacher in the “What was confusing?” box. It really helps.',
+  'Click a line in the transcript to jump straight to that moment.',
+  'Confused? Say so in the sticky note under the video. Your teacher reads them.',
   'Short breaks between lessons help ideas stick.',
 ] as const
 
@@ -51,18 +51,15 @@ export function hashString(s: string): number {
   return h >>> 0
 }
 
-/** Chalk colours a class can be tinted with. Names match `.tint--*` in styles.css. */
-export const CLASS_TINTS = ['yellow', 'pink', 'blue', 'mint', 'orange', 'violet'] as const
+/** Highlighter colours a class can be marked with. Names match `.hl--*` in styles.css. */
+export const CLASS_TINTS = ['yellow', 'pink', 'blue', 'green', 'orange', 'violet'] as const
 export type ClassTint = (typeof CLASS_TINTS)[number]
 
 export function classTint(classId: string): ClassTint {
   return CLASS_TINTS[hashString(classId) % CLASS_TINTS.length]
 }
 
-/** "Ada Lovelace" -> "AL", "ada@example.com" -> "A". */
-export function initials(name: string | null | undefined, email?: string | null): string {
-  const words = (name ?? '').trim().split(/\s+/).filter(Boolean)
-  if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toUpperCase()
-  if (words.length === 1) return words[0][0].toUpperCase()
-  return (email?.trim()[0] ?? '?').toUpperCase()
+/** A small, stable tilt in degrees (for stickers and notes), so things look placed by hand. */
+export function tilt(seed: string, max = 6): number {
+  return (hashString(seed) % (2 * max * 10 + 1)) / 10 - max
 }

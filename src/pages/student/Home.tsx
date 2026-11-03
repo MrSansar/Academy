@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
-import { DoodleField, Lightbulb, Sleepy, Star } from '../../components/Doodles'
-import { AssignmentBadge, ErrorNote, LessonBadge, Loading, ProgressRing } from '../../components/ui'
-import { classTint, greeting, tipOfTheDay } from '../../lib/fun'
-import { formatDue, formatMinutes, formatRelative } from '../../lib/format'
+import { ClassMark, DateTab, PenArrow, Stamp, TodoRow } from '../../components/Notebook'
+import { ErrorNote, Loading } from '../../components/ui'
+import { greeting, tipOfTheDay } from '../../lib/fun'
+import { dayPhrase, formatDue, formatMinutes, formatRelative } from '../../lib/format'
 import { loadMyAssignments, loadMyClasses, loadMyProgress, type MyClass, type StudentAssignment } from '../../lib/studentData'
 import { errorMessage } from '../../lib/supabase'
-import { assignmentStatus, lessonStatus, type LessonProgress } from '../../lib/types'
+import { lessonStatus, type LessonProgress } from '../../lib/types'
 import { JoinForm } from './Join'
+
+const todayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 
 export function Home() {
   const { session, profile } = useAuth()
@@ -37,178 +39,163 @@ export function Home() {
   if (error) return <div className="page"><ErrorNote>{error}</ErrorNote></div>
   if (!assignments) return <div className="page"><Loading label="Loading your assignments" /></div>
 
-  const now = Date.now()
-  const upcoming = assignments.filter((a) => new Date(a.due_at).getTime() >= now)
-  const past = assignments.filter((a) => new Date(a.due_at).getTime() < now).reverse()
+  const now = new Date(Date.now())
+  const upcoming = assignments.filter((a) => new Date(a.due_at) >= now)
+  const past = assignments.filter((a) => new Date(a.due_at) < now).reverse()
   const firstName = (profile?.full_name || '').split(' ')[0]
 
   return (
-    <div className="page">
-      <Hero now={now} firstName={firstName} upcoming={upcoming} progress={progress} hasClasses={classes.length > 0} />
+    <div className="page notebook">
+      <header className="today">
+        <p className="today__date">{todayFormat.format(now)}</p>
+        <h1 className="today__hello">
+          {greeting(now.getHours())}
+          {firstName ? `, ${firstName}.` : '.'}
+        </h1>
+        {classes.length > 0 && <Lede upcoming={upcoming} progress={progress} now={now} />}
+      </header>
 
       {classes.length === 0 ? (
-        <section className="card narrow" aria-labelledby="join-h">
-          <h2 id="join-h">Join your class</h2>
+        <section className="joinpage" aria-labelledby="join-h">
+          <h2 id="join-h" className="rulehead">Join your class</h2>
           <p className="muted">Enter the join code your teacher gave you.</p>
           <JoinForm onJoined={() => setReload((n) => n + 1)} />
         </section>
-      ) : upcoming.length === 0 ? (
-        <div className="empty empty--fun">
-          <Sleepy className="empty__doodle" />
-          <p>
-            <strong>Nothing due right now.</strong> Enjoy the break! New assignments from your teacher will show up
-            here.
-          </p>
-        </div>
       ) : (
-        <>
-          <h2 className="section-title">Coming up</h2>
-          <ul className="stack" aria-label="Upcoming assignments">
-            {upcoming.map((a) => (
-              <AssignmentCard key={a.id} a={a} progress={progress} showClass={classes.length > 1} />
-            ))}
-          </ul>
-        </>
+        upcoming.length > 0 && (
+          <section aria-labelledby="due-h">
+            <h2 id="due-h" className="rulehead">Due before class</h2>
+            <ol className="agenda">
+              {upcoming.map((a) => (
+                <AgendaItem key={a.id} a={a} progress={progress} now={now} />
+              ))}
+            </ol>
+          </section>
+        )
       )}
 
       {past.length > 0 && (
-        <details className="past">
+        <details className="earlier">
           <summary>Earlier assignments ({past.length})</summary>
-          <ul className="stack">
+          <ol className="agenda">
             {past.map((a) => (
-              <AssignmentCard key={a.id} a={a} progress={progress} showClass={classes.length > 1} />
+              <AgendaItem key={a.id} a={a} progress={progress} now={now} />
             ))}
-          </ul>
+          </ol>
         </details>
+      )}
+
+      {classes.length > 0 && (
+        <p className="tip">
+          <span className="tip__label">Tip</span> {tipOfTheDay(now)}
+        </p>
       )}
     </div>
   )
 }
 
-/** Greeting, tip of the day, and how ready the student is for their next class. */
-function Hero({
-  now: nowMs,
-  firstName,
-  upcoming,
-  progress,
-  hasClasses,
-}: {
-  now: number
-  firstName: string
-  upcoming: StudentAssignment[]
-  progress: Map<string, LessonProgress>
-  hasClasses: boolean
-}) {
-  const now = new Date(nowMs)
-  const hello = greeting(now.getHours())
-  const nextA = upcoming[0]
-  const nextLessons = nextA?.lessons ?? []
-  const doneCount = nextLessons.filter((l) => lessonStatus(progress.get(l.id)) === 'complete').length
-  const resume = nextLessons.find((l) => lessonStatus(progress.get(l.id)) !== 'complete')
-  const allUpcomingDone =
-    upcoming.length > 0 &&
-    upcoming.every((a) => a.lessons.every((l) => lessonStatus(progress.get(l.id)) === 'complete'))
+/** One sentence that says what's left before the next class, and a button to get going. */
+function Lede({ upcoming, progress, now }: { upcoming: StudentAssignment[]; progress: Map<string, LessonProgress>; now: Date }) {
+  const isDone = (id: string) => lessonStatus(progress.get(id)) === 'complete'
+
+  if (upcoming.length === 0)
+    return (
+      <p className="today__lede">
+        Nothing to watch right now. New assignments from your teacher will show up here.
+      </p>
+    )
+
+  const target = upcoming.find((a) => a.lessons.some((l) => !isDone(l.id)))
+  if (!target)
+    return (
+      <div className="today__ready">
+        <Stamp seed="ready" big>
+          Ready
+        </Stamp>
+        <p className="today__lede">You’ve watched everything for your upcoming classes. See you there.</p>
+      </div>
+    )
+
+  const left = target.lessons.filter((l) => !isDone(l.id))
+  const secondsLeft = left.reduce(
+    (t, l) => t + l.duration_seconds * (1 - Math.min(100, Number(progress.get(l.id)?.percent_watched ?? 0)) / 100),
+    0,
+  )
+  const next = left[0]
+  const started = progress.get(next.id)
+  const pctIn = Math.floor(Number(started?.percent_watched ?? 0))
 
   return (
-    <section className="hero" aria-labelledby="hero-h">
-      <DoodleField />
-      <div className="hero__main">
-        <p className="hero__kicker">
-          {hello.text} <span aria-hidden="true">{hello.emoji}</span>
-        </p>
-        <h1 id="hero-h" className="hero__title">
-          {firstName ? `Hi ${firstName}!` : 'Your assignments'}
-        </h1>
-        <p className="hero__tip">
-          <Lightbulb className="hero__tip-icon" />
-          <span>
-            <span className="visually-hidden">Tip: </span>
-            {tipOfTheDay(now)}
-          </span>
-        </p>
-      </div>
-
-      {hasClasses && nextA && (
-        <div className="hero__next">
-          {allUpcomingDone ? (
-            <div className="hero__ready">
-              <Star className="hero__star" />
-              <p className="hero__ready-title">You’re ready for class!</p>
-              <p className="hero__ready-text">Every upcoming lesson is done. Nice work.</p>
-            </div>
-          ) : (
-            <>
-              <ProgressRing done={doneCount} total={nextLessons.length} size={76} label={`${nextA.title}`} />
-              <div className="hero__next-text">
-                <p className="hero__next-label">Next up · {formatRelative(nextA.due_at)}</p>
-                <p className="hero__next-title">{nextA.title}</p>
-                {resume && (
-                  <Link className="btn btn--chalk btn--small" to={`/lesson/${resume.id}?a=${nextA.id}`}>
-                    {progress.get(resume.id) ? 'Continue' : 'Start'}: {resume.title} →
-                  </Link>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </section>
+    <>
+      <p className="today__lede">
+        Before {target.className ? <ClassMark id={target.classId} name={target.className} /> : 'class'}{' '}
+        {dayPhrase(target.due_at, now)}, you have{' '}
+        <strong>
+          {left.length} short {left.length === 1 ? 'video' : 'videos'}
+        </strong>{' '}
+        left to watch, about {formatMinutes(Math.max(30, secondsLeft))}.
+      </p>
+      <p className="today__cta">
+        <Link className="btn" to={`/lesson/${next.id}?a=${target.id}`}>
+          {started ? 'Keep going' : 'Start'}: {next.title}
+        </Link>
+        <span className="aside" aria-hidden="true">
+          <PenArrow />
+          {started && pctIn > 0 ? `you’re ${pctIn}% in` : `only ${formatMinutes(next.duration_seconds)}!`}
+        </span>
+      </p>
+    </>
   )
 }
 
-function AssignmentCard({
-  a,
-  progress,
-  showClass,
-}: {
-  a: StudentAssignment
-  progress: Map<string, LessonProgress>
-  showClass: boolean
-}) {
+function AgendaItem({ a, progress, now }: { a: StudentAssignment; progress: Map<string, LessonProgress>; now: Date }) {
   const statuses = a.lessons.map((l) => lessonStatus(progress.get(l.id)))
-  const status = assignmentStatus(statuses)
-  const minutes = a.lessons.reduce((t, l) => t + l.duration_seconds, 0)
-  const isPast = new Date(a.due_at).getTime() < Date.now()
-
-  const done = statuses.filter((x) => x === 'complete').length
+  const done = statuses.filter((s) => s === 'complete').length
+  const allDone = a.lessons.length > 0 && done === a.lessons.length
+  const total = a.lessons.reduce((t, l) => t + l.duration_seconds, 0)
+  const isPast = new Date(a.due_at) < now
 
   return (
-    <li className={`card assignment tint--${classTint(a.classId)}${status === 'done' ? ' assignment--done' : ''}`}>
-      <div className="assignment__head">
-        <div>
-          {showClass && <p className="eyebrow">{a.className}</p>}
-          <h2 className="assignment__title">{a.title}</h2>
-          <p className="due">
-            Due before class on <time dateTime={a.due_at}>{formatDue(a.due_at)}</time>
-            <span className="muted"> · {isPast ? 'class has started' : formatRelative(a.due_at)}</span>
+    <li className={allDone ? 'agenda__item agenda__item--done' : 'agenda__item'}>
+      <DateTab iso={a.due_at} />
+      <div className="agenda__body">
+        {a.className && (
+          <p className="agenda__class">
+            <ClassMark id={a.classId} name={a.className} />
           </p>
-        </div>
-        <div className="assignment__status">
-          <ProgressRing done={done} total={a.lessons.length} size={48} label={a.title} />
-          <AssignmentBadge status={status} />
-        </div>
+        )}
+        <h3 className="agenda__title">{a.title}</h3>
+        <p className="agenda__due">
+          Due before class on <time dateTime={a.due_at}>{formatDue(a.due_at)}</time>
+          <span className="muted"> · {isPast ? 'class has started' : formatRelative(a.due_at, now.getTime())}</span>
+        </p>
+        {a.instructions && (
+          <p className="teacher-note">
+            <span className="visually-hidden">Note from your teacher: </span>
+            {a.instructions}
+          </p>
+        )}
+        <ol className="todo">
+          {a.lessons.map((l, i) => (
+            <TodoRow
+              key={l.id}
+              to={`/lesson/${l.id}?a=${a.id}`}
+              title={l.title}
+              status={statuses[i]}
+              percent={progress.get(l.id)?.percent_watched}
+              meta={formatMinutes(l.duration_seconds)}
+            />
+          ))}
+        </ol>
+        <p className="agenda__foot">
+          {done} of {a.lessons.length} done · about {formatMinutes(total)} in all
+        </p>
       </div>
-      {a.instructions && <p className="assignment__note">{a.instructions}</p>}
-      <ol className="lessons lessons--trail">
-        {a.lessons.map((l, i) => {
-          const p = progress.get(l.id)
-          return (
-            <li key={l.id}>
-              <Link to={`/lesson/${l.id}?a=${a.id}`} className={`lessonrow lessonrow--${statuses[i]}`}>
-                <span className="lessonrow__num" aria-hidden="true">
-                  {statuses[i] === 'complete' ? '✓' : i + 1}
-                </span>
-                <span className="lessonrow__title">{l.title}</span>
-                <span className="lessonrow__meta">{formatMinutes(l.duration_seconds)}</span>
-                <LessonBadge status={statuses[i]} percent={p?.percent_watched} />
-              </Link>
-            </li>
-          )
-        })}
-      </ol>
-      <p className="assignment__foot muted">
-        {a.lessons.length} {a.lessons.length === 1 ? 'lesson' : 'lessons'} · about {formatMinutes(minutes)}
-      </p>
+      {allDone && (
+        <span className="agenda__stamp">
+          <Stamp seed={a.id}>Done</Stamp>
+        </span>
+      )}
     </li>
   )
 }

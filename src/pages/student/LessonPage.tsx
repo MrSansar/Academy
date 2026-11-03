@@ -5,7 +5,7 @@ import { CheckQuestions } from '../../components/CheckQuestions'
 import { ConfusionBox } from '../../components/ConfusionBox'
 import { LessonPlayer, type PlayerControls } from '../../components/LessonPlayer'
 import { TranscriptPanel } from '../../components/TranscriptPanel'
-import { Rocket } from '../../components/Doodles'
+import { Stamp } from '../../components/Notebook'
 import { ErrorNote, Loading } from '../../components/ui'
 import { burst } from '../../lib/confetti'
 import { completeLineFor } from '../../lib/fun'
@@ -113,29 +113,38 @@ export function LessonPage() {
       </nav>
       <header className="lesson__head">
         {assignment && (
-          <p className="eyebrow">
-            {assignment.title}
-            {idx >= 0 && ` · Lesson ${idx + 1} of ${assignment.lessons.length}`}
-          </p>
+          <div className="lesson__where">
+            <p className="eyebrow">{assignment.title}</p>
+            {idx >= 0 && assignment.lessons.length > 1 && (
+              <ol className="steps" aria-label={`Lesson ${idx + 1} of ${assignment.lessons.length}`}>
+                {assignment.lessons.map((l, i) => (
+                  <li key={l.id}>
+                    {i === idx ? (
+                      <span className="steps__n steps__n--here" aria-current="step" title={l.title}>
+                        {i + 1}
+                        <span className="visually-hidden">: {l.title} (this lesson)</span>
+                      </span>
+                    ) : (
+                      <Link className="steps__n" to={`/lesson/${l.id}?a=${assignment.id}`} title={l.title}>
+                        {i + 1}
+                        <span className="visually-hidden">: {l.title}</span>
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         )}
-        {assignment && idx >= 0 && assignment.lessons.length > 1 && (
-          <ol className="steps" aria-label="Lessons in this assignment">
-            {assignment.lessons.map((l, i) => (
-              <li key={l.id} className={i === idx ? 'steps__dot steps__dot--here' : 'steps__dot'}>
-                {i === idx ? (
-                  <span aria-current="step" title={l.title}>
-                    <span className="visually-hidden">{l.title} (this lesson)</span>
-                  </span>
-                ) : (
-                  <Link to={`/lesson/${l.id}?a=${assignment.id}`} title={l.title}>
-                    <span className="visually-hidden">{l.title}</span>
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
-        <h1>{lesson.title}</h1>
+        <h1 className="lesson__title">
+          {lesson.title}
+          {progress?.completed_at && !celebrating && (
+            <>
+              {' '}
+              <Stamp seed={lesson.id}>Done</Stamp>
+            </>
+          )}
+        </h1>
         <p className="muted">
           {formatMinutes(lesson.duration_seconds)}
           {assignment && (
@@ -164,24 +173,26 @@ export function LessonPage() {
           />
 
           {celebrating && (
-            <div className="celebrate" role="status">
-              <Rocket className="celebrate__doodle" />
-              <div className="celebrate__text">
-                <p className="celebrate__title">{completeLineFor(lesson.id)}</p>
-                <p className="celebrate__sub">
+            <div className="wrapup" role="status">
+              <Stamp seed={lesson.id} big>
+                Done
+              </Stamp>
+              <div className="wrapup__text">
+                <p className="wrapup__line">{completeLineFor(lesson.id)}</p>
+                <p className="wrapup__sub">
                   {next
                     ? 'One step closer to being ready for class.'
                     : assignment
-                      ? `That’s the last lesson in “${assignment.title}”.`
-                      : 'Nice work.'}
+                      ? `That was the last lesson in “${assignment.title}”.`
+                      : 'This lesson counts as done.'}
                 </p>
               </div>
               {next ? (
-                <Link className="btn btn--chalk btn--small" to={`/lesson/${next.id}?a=${assignment!.id}`}>
+                <Link className="btn" to={`/lesson/${next.id}?a=${assignment!.id}`}>
                   Next lesson →
                 </Link>
               ) : (
-                <Link className="btn btn--chalk btn--small" to="/">
+                <Link className="btn btn--ghost" to="/">
                   Back to assignments
                 </Link>
               )}
@@ -202,8 +213,11 @@ export function LessonPage() {
 
           {next && (
             <p className="next">
-              <Link className="btn btn--ghost" to={`/lesson/${next.id}?a=${assignment!.id}`}>
-                Next: {next.title} →
+              <Link className="nextlink" to={`/lesson/${next.id}?a=${assignment!.id}`}>
+                <span className="nextlink__label">next up</span>
+                <span className="nextlink__title">
+                  {next.title} <span className="nextlink__arrow" aria-hidden="true">→</span>
+                </span>
               </Link>
             </p>
           )}

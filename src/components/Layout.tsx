@@ -1,10 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
-import { classTint, initials } from '../lib/fun'
 import { useTheme } from '../lib/theme'
 import { DoodleField } from './Doodles'
-import { Avatar } from './ui'
+import { SunMoon } from './Notebook'
 
 export function Layout({ children }: { children: ReactNode }) {
   const { profile, isTeacher, signOut } = useAuth()
@@ -54,9 +53,8 @@ export function Layout({ children }: { children: ReactNode }) {
               title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             >
-              <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
+              <SunMoon dark={theme === 'dark'} />
             </button>
-            <Avatar text={initials(profile?.full_name, profile?.email)} tint={classTint(profile?.id ?? '')} />
             <span className="who" title={profile?.email}>
               {profile?.full_name || profile?.email}
               {isTeacher && <span className="role">Teacher</span>}
@@ -97,17 +95,11 @@ export function AuthLayout({ title, intro, children }: { title: string; intro: R
             teacher what was confusing.
           </p>
         </div>
-        <ul className="gate__perks">
-          <li>
-            <span aria-hidden="true">🎬</span> Bite-sized videos
-          </li>
-          <li>
-            <span aria-hidden="true">🧠</span> Quick self-checks
-          </li>
-          <li>
-            <span aria-hidden="true">💬</span> Ask what confused you
-          </li>
-        </ul>
+        <ol className="gate__steps" aria-label="How it works">
+          <li>watch a few short videos</li>
+          <li>check yourself</li>
+          <li>come to class ready</li>
+        </ol>
       </div>
       <div className="gate__form">
         <div className="form">

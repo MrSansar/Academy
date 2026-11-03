@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
-import { Sleepy, Star } from '../../components/Doodles'
-import { ErrorNote, LessonBadge, Loading, ProgressRing } from '../../components/ui'
-import { classTint } from '../../lib/fun'
+import { ClassMark, StarSticker, TodoRow } from '../../components/Notebook'
+import { ErrorNote, Loading } from '../../components/ui'
 import { formatDue } from '../../lib/format'
 import { loadMyAssignments, loadMyClasses, loadMyProgress, type MyClass, type StudentAssignment } from '../../lib/studentData'
 import { errorMessage } from '../../lib/supabase'
@@ -16,7 +15,7 @@ interface Row {
   dueAt: string
 }
 
-/** Per class: lessons done vs. assigned. Deliberately no streaks, points or rankings. */
+/** Per class: lessons done vs. assigned, as a sticker chart. Deliberately no streaks, points or rankings. */
 export function MyProgress() {
   const { session } = useAuth()
   const userId = session!.user.id
@@ -33,18 +32,15 @@ export function MyProgress() {
   if (!data) return <div className="page"><Loading label="Loading your progress" /></div>
 
   return (
-    <div className="page">
-      <div className="lede">
-        <h1>My progress</h1>
-        <p className="muted">Only you and your teacher can see this.</p>
-      </div>
+    <div className="page notebook">
+      <header className="today">
+        <h1 className="today__hello">My progress</h1>
+        <p className="today__lede">A star for every lesson you finish. Only you and your teacher can see this page.</p>
+      </header>
       {data.c.length === 0 && (
-        <div className="empty empty--fun">
-          <Sleepy className="empty__doodle" />
-          <p>
-            You’re not in a class yet. <Link to="/join">Join a class</Link>
-          </p>
-        </div>
+        <p className="nothing">
+          You’re not in a class yet. <Link to="/join">Join a class</Link>
+        </p>
       )}
       {data.c.map((cls) => {
         // A lesson assigned twice in one class is listed once, under its earliest due date.
@@ -58,38 +54,39 @@ export function MyProgress() {
         const done = list.filter((r) => data.p.get(r.lessonId)?.completed_at).length
         const allDone = list.length > 0 && done === list.length
         return (
-          <section key={cls.id} className={`card assignment tint--${classTint(cls.id)}`} aria-labelledby={`cls-${cls.id}`}>
-            <div className="classprog">
-              <ProgressRing done={done} total={list.length} size={72} label={cls.name} />
-              <div>
-                <h2 id={`cls-${cls.id}`} className="assignment__title">{cls.name}</h2>
-                <p className="count">
-                  <strong>{done}</strong> of {list.length} lessons done
-                </p>
-                {allDone && (
-                  <p className="classprog__cheer">
-                    <Star className="classprog__star" /> All caught up!
-                  </p>
-                )}
-              </div>
-            </div>
+          <section key={cls.id} className="chart" aria-labelledby={`cls-${cls.id}`}>
+            <h2 id={`cls-${cls.id}`} className="chart__title">
+              <ClassMark id={cls.id} name={cls.name} />
+            </h2>
             {list.length === 0 ? (
               <p className="muted">No lessons assigned yet.</p>
             ) : (
-              <ul className="lessons">
-                {list.map((r) => {
-                  const p = data.p.get(r.lessonId)
-                  return (
-                    <li key={r.lessonId}>
-                      <Link to={`/lesson/${r.lessonId}?a=${r.assignmentId}`} className={`lessonrow lessonrow--${lessonStatus(p)}`}>
-                        <span className="lessonrow__title">{r.title}</span>
-                        <span className="lessonrow__meta">due {formatDue(r.dueAt)}</span>
-                        <LessonBadge status={lessonStatus(p)} percent={p?.percent_watched} />
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
+              <>
+                <div className="chart__stickers">
+                  {list.map((r) => (
+                    <StarSticker key={r.lessonId} seed={r.lessonId} state={lessonStatus(data.p.get(r.lessonId))} />
+                  ))}
+                  <p className="chart__count">
+                    <strong>{done}</strong> of {list.length} done
+                    {allDone && <span className="chart__cheer"> all caught up!</span>}
+                  </p>
+                </div>
+                <ol className="todo">
+                  {list.map((r) => {
+                    const p = data.p.get(r.lessonId)
+                    return (
+                      <TodoRow
+                        key={r.lessonId}
+                        to={`/lesson/${r.lessonId}?a=${r.assignmentId}`}
+                        title={r.title}
+                        status={lessonStatus(p)}
+                        percent={p?.percent_watched}
+                        meta={`due ${formatDue(r.dueAt)}`}
+                      />
+                    )
+                  })}
+                </ol>
+              </>
             )}
           </section>
         )

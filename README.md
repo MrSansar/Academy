@@ -28,13 +28,16 @@ transcript, and a short summary. Optional end-of-lesson practice questions give 
 can be retried. An optional “What was confusing?” box sends a note to the teacher. *My progress*
 shows lessons done vs. assigned per class.
 
-The student side has some personality without turning learning into a competition: a chalkboard
-greeting with a study tip of the day and a "ready for class" ring that jumps straight to the next
-unwatched lesson; each class gets its own chalk colour; lessons in an assignment form a trail that
-fills in as you go; finishing a lesson sets off chalk-dust confetti; and right answers get a cheer
-(wrong ones a gentle shake). There's a dark "chalkboard" theme (follows the OS until you pick one
-with the 🌙 button). Animations are switched off for anyone who asks the OS for reduced motion.
-Still no streaks, points, badges or leaderboards: students only ever see their own progress.
+The student side is designed like a school notebook: a chalkboard header over paper with a red
+margin line. Home opens with the date, a greeting and one plain sentence about what's left before the
+next class (“Before Physics 101 tomorrow at 3:15 PM, you have 2 short videos left…”) with a Start
+button. Each assignment is a tear-off calendar date and a to-do list with hand-drawn checkboxes;
+classes are marked with their own highlighter colour; teacher instructions appear in handwriting.
+Finishing a lesson thumps a rubber DONE stamp onto the page with chalk-dust confetti. Practice
+questions look like a bubble answer sheet: a green tick is drawn on for a right answer, red pen for a
+wrong one. “What was confusing?” is a sticky note. *My progress* is a gold-star sticker chart. A dark
+theme turns the whole page into a chalkboard (it follows the OS until you pick one with the moon
+button). Animations are off for anyone who asks the OS for reduced motion. Still no streaks, points, badges or leaderboards: students only ever see their own progress.
 
 **The teacher** gets, per assignment, a students × lessons table (not opened / % watched /
 complete, with “not opened” turning amber within 3 days of class and red within 24 hours), first-try

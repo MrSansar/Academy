@@ -66,3 +66,37 @@ export function formatJoinCode(code: string): string {
 export function pct(value: number | null | undefined): string {
   return `${Math.floor(value ?? 0)}%`
 }
+
+const timeOnly = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+const weekdayLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
+const weekdayShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+const monthShort = new Intl.DateTimeFormat(undefined, { month: 'short' })
+const monthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+
+/** Whole calendar days from `a` to `b` in the viewer's time zone (0 = same day). */
+export function calendarDaysBetween(a: Date, b: Date): number {
+  const da = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
+  const db = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+  return Math.round((db - da) / 86_400_000)
+}
+
+/** For sentences: "today at 3:15 PM", "tomorrow at 9:00 AM", "on Friday", "on Nov 20". */
+export function dayPhrase(iso: string, now = new Date()): string {
+  const d = new Date(iso)
+  const days = calendarDaysBetween(now, d)
+  if (days === 0) return `today at ${timeOnly.format(d)}`
+  if (days === 1) return `tomorrow at ${timeOnly.format(d)}`
+  if (days > 1 && days < 7) return `on ${weekdayLong.format(d)}`
+  return `on ${monthDay.format(d)}`
+}
+
+/** Parts for a tear-off calendar page: { weekday: "Wed", day: "4", month: "Nov", time: "3:15 PM" }. */
+export function calendarParts(iso: string) {
+  const d = new Date(iso)
+  return {
+    weekday: weekdayShort.format(d),
+    day: String(d.getDate()),
+    month: monthShort.format(d),
+    time: timeOnly.format(d),
+  }
+}
