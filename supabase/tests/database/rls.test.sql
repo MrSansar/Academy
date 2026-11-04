@@ -2,7 +2,7 @@
 -- Uses the sample class from seed.sql (join code SAMPLE24). Everything rolls back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(51);
 
 -- ---------------------------------------------------------------- fixtures
 -- Users are created the same way sign-up creates them, so the profile/enrollment trigger runs.
@@ -61,6 +61,10 @@ select lives_ok($$select public.save_progress('33333333-3333-4333-8333-333333333
   'Ben saves progress');
 select lives_ok($$insert into public.confusion_notes (lesson_id, body)
                   values ('33333333-3333-4333-8333-333333333332', 'Ben: what is a basis?')$$, 'Ben leaves a note');
+select throws_ok($$select public.set_notes_handled(array(select id from public.confusion_notes where student_id = auth.uid()), true)$$,
+  '42501', null, 'a student cannot mark a note handled');
+select throws_ok($$update public.confusion_notes set handled_at = now() where student_id = auth.uid()$$,
+  '42501', null, 'a student cannot set handled_at directly');
 select lives_ok($$select public.submit_answer('44444444-4444-4444-8444-444444444441', 2)$$, 'Ben answers a question');
 
 -- ---------------------------------------------------------------- Ana: tracking
@@ -154,6 +158,19 @@ select is((select count(*)::int from public.confusion_notes n
            join public.profiles p on p.id = n.student_id where p.email like '%@test.local'), 1,
   'the teacher reads confusion notes');
 select is((select count(*)::int from public.question_keys), 2, 'the teacher reads the answer key');
+create function pg_temp.test_note_ids() returns bigint[] language sql as $$
+  select array(select n.id from public.confusion_notes n
+               join public.profiles p on p.id = n.student_id where p.email like '%@test.local')
+$$;
+select is(public.set_notes_handled(pg_temp.test_note_ids(), true), 1, 'the teacher marks a note handled');
+select is((select handled_by from public.confusion_notes where id = any(pg_temp.test_note_ids())),
+  'aaaaaaaa-0000-4000-8000-00000000000a'::uuid, 'handled_by is always the teacher who marked it');
+select is((select handled_at is not null from public.confusion_notes where id = any(pg_temp.test_note_ids())), true,
+  'handled_at is set');
+select is(public.set_notes_handled(pg_temp.test_note_ids(), false), 1, 'the teacher can reopen a note');
+select is((select count(*)::int from public.confusion_notes
+           where id = any(pg_temp.test_note_ids()) and handled_at is null and handled_by is null), 1,
+  'reopening clears who handled it and when');
 select lives_ok($$insert into public.courses (title) values ('Teacher course')$$, 'the teacher can create a course');
 
 select pg_temp.logout();

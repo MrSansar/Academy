@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
 import { ClassMark, DateTab } from '../../components/Notebook'
 import { ErrorNote, Loading } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
 import { greeting } from '../../lib/fun'
-import { dayPhrase, formatDue, formatJoinCode } from '../../lib/format'
-import { isNewNote, useNotesSeenAt } from '../../lib/notesSeen'
+import { dayPhrase, formatJoinCode } from '../../lib/format'
 import { errorMessage } from '../../lib/supabase'
-import { loadOverview, prepFor, upcomingAssignments, urgency, type Overview } from '../../lib/teacherOverview'
-import { NoteCard, NotOpenedList, PrepBar } from './parts'
+import { loadOverview, prepFor, upcomingAssignments, urgency, type OvNote, type Overview } from '../../lib/teacherOverview'
+import { useNoteActions } from '../../lib/useNoteActions'
+import { NoteActionStatus, NoteCard, NotOpenedList, PrepBar } from './parts'
 
 const WEEK = 7 * 86_400_000
 
@@ -20,14 +20,18 @@ export function Dashboard() {
   const [loadedAt, setLoadedAt] = useState(0)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
-  const seenAt = useNotesSeenAt()
+  // The notes that were open when the page loaded: they stay listed after being handled, so Reopen is right there.
+  const [shownNotes, setShownNotes] = useState<number[]>([])
+  const updateNotes = useCallback((fn: (n: OvNote[]) => OvNote[]) => setData((d) => d && { ...d, notes: fn(d.notes) }), [])
+  const actions = useNoteActions(updateNotes)
 
   useEffect(() => {
     let active = true
-    loadOverview({ notesLimit: 60 })
+    loadOverview({ notesLimit: 300 })
       .then((d) => {
         if (!active) return
         setData(d)
+        setShownNotes(d.notes.filter((n) => !n.handledAt).slice(0, 5).map((n) => n.id))
         setLoadedAt(Date.now())
       })
       .catch((e) => active && setError(errorMessage(e)))
@@ -45,7 +49,7 @@ export function Dashboard() {
   const upcoming = upcomingAssignments(data.classes, loadedAt)
   const thisWeek = upcoming.filter((x) => new Date(x.a.due_at).getTime() - loadedAt <= WEEK)
   const shown = (thisWeek.length ? thisWeek : upcoming).slice(0, 6)
-  const newNotes = data.notes.filter((n) => isNewNote(n.created_at, seenAt))
+  const openNotes = data.notes.filter((n) => !n.handledAt)
   const next = upcoming[0]
   const nextPrep = next ? prepFor(next.a, next.cls.students, data.progress) : null
 
@@ -73,16 +77,16 @@ export function Dashboard() {
             ) : (
               <>No assignments coming up. </>
             )}
-            {newNotes.length > 0 ? (
+            {openNotes.length > 0 ? (
               <>
                 You have{' '}
                 <Link to="/teach/notes">
-                  {newNotes.length} new {newNotes.length === 1 ? 'note' : 'notes'}
+                  {openNotes.length} open {openNotes.length === 1 ? 'note' : 'notes'}
                 </Link>{' '}
                 from students.
               </>
             ) : (
-              <>No new notes from students.</>
+              <>No open notes from students.</>
             )}
           </p>
         )}
@@ -110,7 +114,7 @@ export function Dashboard() {
                   const prep = prepFor(a, cls.students, data.progress)
                   return (
                     <li key={a.id} className="agenda__item">
-                      <DateTab iso={a.due_at} />
+                      <DateTab iso={a.due_at} urgent={urgency(a.due_at, loadedAt) === 'urgent'} />
                       <div className="agenda__body">
                         <p className="agenda__class">
                           <ClassMark id={cls.id} name={cls.name} />
@@ -119,7 +123,7 @@ export function Dashboard() {
                           <Link to={`/teach/assignments/${a.id}`}>{a.title}</Link>
                         </h3>
                         <p className="agenda__due">
-                          Before class on <time dateTime={a.due_at}>{formatDue(a.due_at)}</time>
+                          Due <time dateTime={a.due_at}>{dayPhrase(a.due_at, now)}</time>
                           <span className="muted">
                             {' '}
                             · {a.lessons.length} {a.lessons.length === 1 ? 'lesson' : 'lessons'}
@@ -152,15 +156,20 @@ export function Dashboard() {
                   All notes →
                 </Link>
               </h2>
-              {data.notes.length === 0 ? (
+              <NoteActionStatus status={actions.status} error={actions.error} />
+              {shownNotes.length === 0 ? (
                 <p className="muted dash__empty">
-                  No notes yet. Students can leave one under any lesson that has the “What was confusing?” box on.
+                  {data.notes.length === 0
+                    ? 'No notes yet. Students can leave one under any lesson that has the “What was confusing?” box on.'
+                    : 'Nothing open. Every note has been handled.'}
                 </p>
               ) : (
                 <ul className="notes-board notes-board--stack">
-                  {data.notes.slice(0, 5).map((n) => (
-                    <NoteCard key={n.id} note={n} classes={data.classes} isNew={isNewNote(n.created_at, seenAt)} />
-                  ))}
+                  {data.notes
+                    .filter((n) => shownNotes.includes(n.id))
+                    .map((n) => (
+                      <NoteCard key={n.id} note={n} now={loadedAt} classes={data.classes} onHandle={actions.toggle} />
+                    ))}
                 </ul>
               )}
             </section>
@@ -201,7 +210,7 @@ function GettingStarted() {
       <ol className="setup__steps">
         <li>
           <strong>Add your lessons.</strong> Make a course and paste YouTube links.{' '}
-          <Link to="/teach/courses">Go to Lessons</Link>
+          <Link to="/teach/courses">Go to Courses</Link>
         </li>
         <li>
           <strong>Make a class.</strong> Each class gets its own join code.{' '}

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { Crumbs, ErrorNote, Loading } from '../../components/ui'
+import { dayPhrase, formatShort, pct, pctRound } from '../../lib/format'
 import { usePageTitle } from '../../lib/pageTitle'
-import { formatDue, formatRelative, formatShort, pct } from '../../lib/format'
 import { errorMessage } from '../../lib/supabase'
 import {
   exportAssignmentCsv,
@@ -11,43 +11,74 @@ import {
   questionStats,
   type AssignmentReport,
 } from '../../lib/teacherData'
-import { studentPath, urgency } from '../../lib/teacherOverview'
+import { prepFor, studentPath, urgency, type OvClass, type OvNote } from '../../lib/teacherOverview'
 import { choicesOf, lessonStatus, type LessonProgress } from '../../lib/types'
+import { useNoteActions } from '../../lib/useNoteActions'
+import { NoteActionStatus, NoteCard, NotOpenedList, PrepBar } from './parts'
 
-
+/** Below this many first tries, a percentage says more about one student than about the class. */
+const MIN_ANSWERS = 3
 
 export function AssignmentDashboard() {
   const { assignmentId = '' } = useParams()
   const [report, setReport] = useState<AssignmentReport | null>(null)
+  const [notes, setNotes] = useState<OvNote[]>([])
+  const [loadedAt, setLoadedAt] = useState(0)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
   usePageTitle(report?.assignment.title ?? 'Assignment')
+  const updateNotes = useCallback((fn: (n: OvNote[]) => OvNote[]) => setNotes(fn), [])
+  const actions = useNoteActions(updateNotes)
 
   useEffect(() => {
+    let active = true
     loadAssignmentReport(assignmentId)
-      .then(setReport)
-      .catch((e) => setError(errorMessage(e)))
+      .then((r) => {
+        if (!active) return
+        const names = new Map(r.students.map((s) => [s.id, s.name]))
+        const titles = new Map(r.lessons.map((l) => [l.id, l.title]))
+        setReport(r)
+        setNotes(
+          r.notes.map((n) => ({
+            id: n.id,
+            body: n.body,
+            created_at: n.created_at,
+            handledAt: n.handled_at,
+            lessonId: n.lesson_id,
+            lessonTitle: titles.get(n.lesson_id) ?? 'Lesson',
+            studentId: n.student_id,
+            studentName: names.get(n.student_id) ?? 'Student',
+          })),
+        )
+        setLoadedAt(Date.now())
+      })
+      .catch((e) => active && setError(errorMessage(e)))
+    return () => {
+      active = false
+    }
   }, [assignmentId, reload])
 
-  if (!report) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading dashboard" />}</div>
+  if (!report) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading report" />}</div>
 
-  const { assignment, lessons, students, progress, questions, attempts, notes } = report
-  const level = urgency(assignment.due_at)
-  const isPast = new Date(assignment.due_at).getTime() < Date.now()
-
-  const perStudent = students.map((s) => {
-    const statuses = lessons.map((l) => lessonStatus(progress.get(progressKey(s.id, l.id))))
-    return {
-      s,
-      done: statuses.filter((x) => x === 'complete').length,
-      opened: statuses.filter((x) => x !== 'not_opened').length,
-    }
-  })
-  const allDone = perStudent.filter((r) => lessons.length > 0 && r.done === lessons.length).length
-  const notOpened = perStudent.filter((r) => r.opened === 0).length
+  const { assignment, lessons, students, progress, questions, attempts } = report
+  const level = urgency(assignment.due_at, loadedAt)
+  const now = new Date(loadedAt)
+  const isPast = new Date(assignment.due_at).getTime() < loadedAt
+  const prep = prepFor({ lessons }, students, progress)
+  // Just enough of the class for note cards to link names and show the class label.
+  const cls: OvClass = {
+    id: assignment.class_id,
+    name: report.className,
+    archived: false,
+    joinCode: '',
+    courseId: '',
+    courseTitle: '',
+    students: students.map((s) => ({ ...s, joinedAt: '' })),
+    assignments: [{ id: assignment.id, title: assignment.title, due_at: assignment.due_at, classId: assignment.class_id, lessons }],
+  }
 
   return (
-    <div className="page page--wide">
+    <div className="page page--wide teach">
       <Crumbs
         items={[
           { label: 'Classes', to: '/teach/classes' },
@@ -55,12 +86,14 @@ export function AssignmentDashboard() {
           { label: assignment.title },
         ]}
       />
-      <div className="lede lede--row">
+      <header className="pagehead pagehead--row">
         <div>
           <h1>{assignment.title}</h1>
           <p className="muted">
-            Due before class on <time dateTime={assignment.due_at}>{formatDue(assignment.due_at)}</time> ·{' '}
-            {isPast ? 'class has started' : formatRelative(assignment.due_at)}
+            {isPast ? 'Was due' : 'Due'} <time dateTime={assignment.due_at}>{dayPhrase(assignment.due_at, now)}</time>
+            {' · '}
+            {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'} · {students.length}{' '}
+            {students.length === 1 ? 'student' : 'students'}
           </p>
         </div>
         <div className="row">
@@ -74,24 +107,25 @@ export function AssignmentDashboard() {
             Export CSV
           </button>
         </div>
-      </div>
+      </header>
 
-      <ul className="stats" aria-label="Summary">
-        <li><strong>{students.length}</strong> students</li>
-        <li><strong>{allDone}</strong> finished everything</li>
-        <li className={notOpened && level !== 'none' ? `stats--${level}` : ''}>
-          <strong>{notOpened}</strong> haven’t opened anything
-        </li>
-      </ul>
+      {students.length > 0 && lessons.length > 0 && (
+        <div className="reportprep">
+          <PrepBar prep={prep} />
+          <NotOpenedList prep={prep} classId={assignment.class_id} level={level} max={12} />
+        </div>
+      )}
 
       {students.length === 0 ? (
-        <p className="empty">No students in this class yet. Share the join code from the class page.</p>
+        <p className="nothing">No students in this class yet. Share the join code from the class page.</p>
       ) : lessons.length === 0 ? (
-        <p className="empty">This assignment has no lessons. Add some with Edit.</p>
+        <p className="nothing">This assignment has no lessons. Add some with Edit.</p>
       ) : (
-        <section aria-labelledby="grid-h">
-          <h2 id="grid-h" className="subhead">Who prepared</h2>
-          <div className="tablewrap" tabIndex={0} role="region" aria-label="Progress table, scrolls sideways">
+        <section className="section" aria-labelledby="grid-h">
+          <h2 id="grid-h" className="rulehead">
+            Who prepared
+          </h2>
+          <div className="tablewrap tablewrap--flat" tabIndex={0} role="region" aria-label="Progress table, scrolls sideways">
             <table className="grid">
               <thead>
                 <tr>
@@ -105,54 +139,64 @@ export function AssignmentDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {perStudent.map(({ s, done }) => (
-                  <tr key={s.id}>
-                    <th scope="row">
-                      <Link to={studentPath(assignment.class_id, s.id)}>{s.name}</Link>
-                      <span className="email">{s.email}</span>
-                    </th>
-                    {lessons.map((l) => (
-                      <Cell key={l.id} p={progress.get(progressKey(s.id, l.id))} dueAt={assignment.due_at} level={level} />
-                    ))}
-                    <td className={done === lessons.length ? 'cell cell--done' : 'cell'}>
-                      {done}/{lessons.length} done
-                    </td>
-                  </tr>
-                ))}
+                {students.map((s) => {
+                  const done = lessons.filter((l) => lessonStatus(progress.get(progressKey(s.id, l.id))) === 'complete').length
+                  return (
+                    <tr key={s.id}>
+                      <th scope="row">
+                        <Link to={studentPath(assignment.class_id, s.id)}>{s.name}</Link>
+                        <span className="email">{s.email}</span>
+                      </th>
+                      {lessons.map((l) => (
+                        <Cell key={l.id} p={progress.get(progressKey(s.id, l.id))} dueAt={assignment.due_at} level={level} />
+                      ))}
+                      <td className={done === lessons.length ? 'cell cell--done' : 'cell'}>
+                        {done}/{lessons.length} done
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
           <p className="legend muted small">
             “Not opened” turns <span className="key key--soon">amber</span> within 3 days of class and{' '}
             <span className="key key--urgent">red</span> within 24 hours. Complete = 90% of the video’s seconds actually
-            played (skipping ahead doesn’t count). “Late” = finished after the due time.
+            played (skipping ahead doesn’t count). “Late” = finished after class started.
           </p>
         </section>
       )}
 
       {lessons.some((l) => l.check_enabled) && (
         <section aria-labelledby="q-h" className="section">
-          <h2 id="q-h" className="subhead">Check questions</h2>
-          <p className="muted small">Percent correct on each student’s first try. Low numbers are ideas to cover in class.</p>
+          <h2 id="q-h" className="rulehead">
+            Check questions <span className="rulehead__aside">first try only</span>
+          </h2>
+          <p className="muted small">Low numbers are ideas to go over in class. Retries don’t count.</p>
           {lessons
             .filter((l) => l.check_enabled)
             .map((l) => {
               const qs = questions.filter((q) => q.lesson_id === l.id)
               return (
-                <div key={l.id} className="card">
-                  <h3>{l.title}</h3>
+                <div key={l.id} className="qlesson">
+                  <h3 className="qlesson__title">{l.title}</h3>
                   {qs.length === 0 && <p className="muted">No questions written for this lesson yet.</p>}
                   {qs.map((q, i) => {
                     const choices = choicesOf(q)
                     const st = questionStats(q, attempts, choices.length)
-                    const rate = st.answered ? (st.firstTryCorrect / st.answered) * 100 : null
+                    const enough = st.answered >= MIN_ANSWERS
+                    const rate = st.answered ? (st.firstTryCorrect / st.answered) * 100 : 0
                     return (
                       <div key={q.id} className="qstat">
                         <p className="qstat__prompt">
                           <strong>{i + 1}.</strong> {q.prompt}
                         </p>
-                        <p className={rate !== null && rate < 60 ? 'qstat__rate qstat__rate--low' : 'qstat__rate'}>
-                          {rate === null ? 'No answers yet' : `${pct(rate)} correct on first try`}
+                        <p className={enough ? (rate < 60 ? 'qstat__rate qstat__rate--low' : 'qstat__rate') : 'qstat__rate qstat__rate--few'}>
+                          {st.answered === 0
+                            ? 'No answers yet'
+                            : enough
+                              ? `${pctRound(rate)} right on the first try`
+                              : `${st.answered} ${st.answered === 1 ? 'answer' : 'answers'} so far, too few to tell`}
                           <span className="muted"> · {st.answered} of {students.length} answered</span>
                         </p>
                         <ul className="dist">
@@ -184,31 +228,50 @@ export function AssignmentDashboard() {
 
       {lessons.some((l) => l.confusion_enabled) && (
         <section aria-labelledby="c-h" className="section">
-          <h2 id="c-h" className="subhead">What was confusing</h2>
+          <h2 id="c-h" className="rulehead">
+            What confused them
+            <Link className="rulehead__end" to="/teach/notes">
+              All notes →
+            </Link>
+          </h2>
+          <NoteActionStatus status={actions.status} error={actions.error} />
           {lessons
             .filter((l) => l.confusion_enabled)
             .map((l) => {
-              const list = notes.filter((n) => n.lesson_id === l.id)
+              const list = notes.filter((n) => n.lessonId === l.id)
+              const open = list.filter((n) => !n.handledAt)
               return (
-                <div key={l.id} className="card">
-                  <h3>
-                    {l.title} <span className="muted">({list.length})</span>
-                  </h3>
+                <div key={l.id} className="notegroup">
+                  <div className="notegroup__head">
+                    <h3>{l.title}</h3>
+                    <span className="notegroup__count">
+                      {open.length} open{list.length - open.length ? ` · ${list.length - open.length} handled` : ''}
+                    </span>
+                    {open.length > 0 && (
+                      <span className="notegroup__actions">
+                        <button
+                          type="button"
+                          className="btn btn--done btn--small"
+                          onClick={() =>
+                            void actions.run(
+                              open.map((n) => n.id),
+                              true,
+                              `Marked ${open.length} ${open.length === 1 ? 'note' : 'notes'} on “${l.title}” handled.`,
+                            )
+                          }
+                        >
+                          Covered in class
+                          <span className="visually-hidden">: mark all {open.length} open notes on {l.title} handled</span>
+                        </button>
+                      </span>
+                    )}
+                  </div>
                   {list.length === 0 ? (
                     <p className="muted">No notes yet.</p>
                   ) : (
-                    <ul className="notes">
+                    <ul className="notes-board">
                       {list.map((n) => (
-                        <li key={n.id}>
-                          <p>{n.body}</p>
-                          <p className="muted small">
-                            <Link to={studentPath(assignment.class_id, n.student_id)}>
-                              {students.find((s) => s.id === n.student_id)?.name ?? 'Student'}
-                            </Link>{' '}
-                            ·{' '}
-                            <time dateTime={n.created_at}>{formatShort(n.created_at)}</time>
-                          </p>
-                        </li>
+                        <NoteCard key={n.id} note={n} now={loadedAt} classes={[cls]} showLesson={false} onHandle={actions.toggle} />
                       ))}
                     </ul>
                   )}

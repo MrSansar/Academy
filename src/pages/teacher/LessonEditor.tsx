@@ -7,6 +7,7 @@ import { formatClock } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import { parseTranscript } from '../../lib/transcript'
 import { choicesOf } from '../../lib/types'
+import { useUnsavedChangesWarning } from '../../lib/useUnsavedChanges'
 import { parseYouTubeId } from '../../lib/youtube'
 import { LONG_LESSON_SECONDS } from './CourseLessons'
 
@@ -20,6 +21,41 @@ interface QuestionDraft {
 }
 
 const MAX_QUESTIONS = 3
+
+/** Everything the teacher can edit, so "unsaved changes" is a plain comparison. */
+interface Values {
+  title: string
+  video: string
+  duration: string
+  summary: string
+  transcript: string
+  checkOn: boolean
+  confusionOn: boolean
+  questions: QuestionDraft[]
+}
+
+const EMPTY: Values = {
+  title: '',
+  video: '',
+  duration: '',
+  summary: '',
+  transcript: '',
+  checkOn: false,
+  confusionOn: false,
+  questions: [],
+}
+
+function snapshot(v: Values, removedIds: string[]): string {
+  const questions = v.questions.map((q) => ({ id: q.id, prompt: q.prompt, choices: q.choices, correct: q.correct, explanation: q.explanation }))
+  return JSON.stringify({ ...v, questions, removedIds })
+}
+
+const SECTIONS = [
+  { id: 'video', label: 'Video' },
+  { id: 'text', label: 'Summary & transcript' },
+  { id: 'questions', label: 'Check questions' },
+  { id: 'confusion', label: 'Confusion box' },
+] as const
 
 function blankQuestion(): QuestionDraft {
   return { key: crypto.randomUUID(), prompt: '', choices: ['', '', ''], correct: 0, explanation: '' }
@@ -56,7 +92,19 @@ export function LessonEditor() {
   const [saved, setSaved] = useState('')
   const [busy, setBusy] = useState(false)
   const [courseTitle, setCourseTitle] = useState('')
+  const [savedValues, setSavedValues] = useState<Values>(EMPTY)
   usePageTitle(isNew ? 'New lesson' : title || 'Edit lesson')
+
+  function applyValues(v: Values) {
+    setTitle(v.title)
+    setVideo(v.video)
+    setDuration(v.duration)
+    setSummary(v.summary)
+    setTranscript(v.transcript)
+    setCheckOn(v.checkOn)
+    setConfusionOn(v.confusionOn)
+    setQuestions(v.questions)
+  }
 
   useEffect(() => {
     if (!courseId) return
@@ -79,17 +127,15 @@ export function LessonEditor() {
         .eq('lesson_id', l.id)
         .order('position')
       if (qErr) throw qErr
-      setCourseId(l.course_id)
-      setTitle(l.title)
-      setVideo(l.youtube_id)
-      setDuration(formatClock(l.duration_seconds))
-      setDurationTouched(true)
-      setSummary(l.summary)
-      setTranscript(l.transcript ?? '')
-      setCheckOn(l.check_enabled)
-      setConfusionOn(l.confusion_enabled)
-      setQuestions(
-        qs.map((q) => ({
+      const v: Values = {
+        title: l.title,
+        video: l.youtube_id,
+        duration: formatClock(l.duration_seconds),
+        summary: l.summary,
+        transcript: l.transcript ?? '',
+        checkOn: l.check_enabled,
+        confusionOn: l.confusion_enabled,
+        questions: qs.map((q) => ({
           key: q.id,
           id: q.id,
           prompt: q.prompt,
@@ -97,10 +143,30 @@ export function LessonEditor() {
           correct: q.question_keys?.correct_index ?? 0,
           explanation: q.question_keys?.explanation ?? '',
         })),
-      )
+      }
+      setCourseId(l.course_id)
+      setDurationTouched(true)
+      applyValues(v)
+      setSavedValues(v)
       setLoaded(true)
     })().catch((e) => setError(errorMessage(e)))
   }, [params.lessonId])
+
+  const current: Values = { title, video, duration, summary, transcript, checkOn, confusionOn, questions }
+  const dirty = loaded && snapshot(current, removedIds) !== snapshot(savedValues, [])
+  useUnsavedChangesWarning(dirty && !busy)
+
+  function discard() {
+    applyValues(savedValues)
+    setRemovedIds([])
+    setError('')
+  }
+
+  function jumpTo(section: string) {
+    const h = document.getElementById(`${formId}-${section}`)
+    h?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    h?.focus({ preventScroll: true })
+  }
 
   const youtubeId = parseYouTubeId(video)
   const seconds = parseDuration(duration)
@@ -190,7 +256,8 @@ export function LessonEditor() {
       }
       setQuestions(next)
       setRemovedIds([])
-      setSaved('Saved.')
+      setSavedValues({ ...current, questions: next })
+      setSaved('All changes saved.')
       if (isNew) navigate(`/teach/lessons/${lessonId}`, { replace: true })
     } catch (err) {
       setError(errorMessage(err))
@@ -212,129 +279,161 @@ export function LessonEditor() {
 
   if (!loaded) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading />}</div>
 
+  const status = busy ? 'Saving…' : dirty ? 'Unsaved changes' : isNew ? 'Nothing to save yet' : saved || 'No changes'
+  const sectionHead = (id: (typeof SECTIONS)[number]['id'], label: string) => (
+    <h2 id={`${formId}-${id}`} className="rulehead" tabIndex={-1}>
+      {label}
+    </h2>
+  )
+
   return (
-    <div className="page">
+    <div className="page teach">
       <Crumbs
         items={[
-          { label: 'Lessons', to: '/teach/courses' },
+          { label: 'Courses', to: '/teach/courses' },
           { label: courseTitle || 'Course', to: `/teach/courses/${courseId}` },
           { label: isNew ? 'New lesson' : title || 'Lesson' },
         ]}
       />
-      <div className="lede lede--row">
-        <h1>{isNew ? 'New lesson' : 'Edit lesson'}</h1>
+      <header className="pagehead pagehead--row">
+        <div>
+          <p className="eyebrow">{isNew ? 'New lesson' : 'Edit lesson'}</p>
+          <h1>{title.trim() || (isNew ? 'Untitled lesson' : 'Lesson')}</h1>
+        </div>
         {!isNew && (
           <Link className="btn btn--ghost btn--small" to={`/lesson/${params.lessonId}`}>
             Preview as student
           </Link>
         )}
-      </div>
+      </header>
 
       <form id={formId} onSubmit={save} className="editor">
-        <div className="editor__main card">
-          <Field label="Title" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Field
-            label="YouTube link or video ID"
-            required
-            placeholder="https://youtu.be/…"
-            value={video}
-            onChange={(e) => {
-              setVideo(e.target.value)
-              // A different video: read its length again once the preview loads.
-              setDurationTouched(false)
-              setDuration('')
-            }}
-            hint={
-              video && !youtubeId
-                ? 'That doesn’t look like a YouTube link.'
-                : 'Unlisted videos work. Make sure “Allow embedding” is on in YouTube Studio.'
-            }
-          />
-          <Field
-            label="Length (m:ss)"
-            required
-            inputMode="numeric"
-            placeholder="6:00"
-            value={duration}
-            onChange={(e) => {
-              setDuration(e.target.value)
-              setDurationTouched(true)
-            }}
-            hint="Filled in automatically from the video."
-          />
-          {seconds !== null && seconds > LONG_LESSON_SECONDS && (
-            <p className="softwarn" role="status">
-              This video is {formatClock(seconds)} long. Short videos of about 6 minutes get watched more; consider
-              splitting.
-            </p>
-          )}
-          <TextArea
-            label="Short summary (shown under the video)"
-            rows={4}
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-          />
-          <TextArea
-            label="Transcript (optional)"
-            rows={6}
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            hint={
-              <>
-                One line per cue starting with a time, e.g. <code>1:05 Adding vectors</code>. You can also paste YouTube’s
-                “Show transcript” text or a .vtt file.{' '}
-                {transcript.trim() && <strong>{cues.length} timed lines found.</strong>}
-              </>
-            }
-          />
-
-          <h2 className="subhead">After the video</h2>
-          <Toggle
-            label="End-of-lesson check questions"
-            hint="0–3 multiple-choice practice questions with instant feedback. Not graded."
-            checked={checkOn}
-            onChange={setCheckOn}
-          />
-          {checkOn && (
-            <div className="qedit">
-              {questions.map((q, i) => (
-                <QuestionEditor
-                  key={q.key}
-                  n={i + 1}
-                  q={q}
-                  onChange={(patch) => updateQuestion(q.key, patch)}
-                  onRemove={() => removeQuestion(q)}
-                />
-              ))}
-              {questions.length < MAX_QUESTIONS && (
-                <button type="button" className="btn btn--ghost btn--small" onClick={() => setQuestions((qs) => [...qs, blankQuestion()])}>
-                  + Add question ({questions.length}/{MAX_QUESTIONS})
-                </button>
-              )}
-            </div>
-          )}
-          <Toggle
-            label="“What was confusing?” box"
-            hint="Students can send you a short note. You’ll see them on the assignment dashboard."
-            checked={confusionOn}
-            onChange={setConfusionOn}
-          />
-
-          <ErrorNote>{error}</ErrorNote>
-          <div className="row">
-            <button className="btn" disabled={busy}>
-              {busy ? 'Saving…' : 'Save lesson'}
-            </button>
-            <span role="status" className="ok">{saved}</span>
-            {!isNew && (
-              <button type="button" className="btn btn--ghost danger push" onClick={() => void remove()}>
-                Delete lesson
-              </button>
+        <div className="editor__main">
+          <section aria-labelledby={`${formId}-video`} className="editor__section">
+            {sectionHead('video', 'Video')}
+            <Field label="Title" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Field
+              label="YouTube link or video ID"
+              required
+              placeholder="https://youtu.be/…"
+              value={video}
+              onChange={(e) => {
+                setVideo(e.target.value)
+                // A different video: read its length again once the preview loads.
+                setDurationTouched(false)
+                setDuration('')
+              }}
+              hint={
+                video && !youtubeId
+                  ? 'That doesn’t look like a YouTube link.'
+                  : 'Unlisted videos work. Make sure “Allow embedding” is on in YouTube Studio.'
+              }
+            />
+            <Field
+              label="Length (m:ss)"
+              required
+              inputMode="numeric"
+              placeholder="6:00"
+              value={duration}
+              onChange={(e) => {
+                setDuration(e.target.value)
+                setDurationTouched(true)
+              }}
+              hint="Filled in automatically from the video."
+            />
+            {seconds !== null && seconds > LONG_LESSON_SECONDS && (
+              <p className="softwarn" role="status">
+                This video is {formatClock(seconds)} long. Short videos of about 6 minutes get watched more; consider
+                splitting.
+              </p>
             )}
-          </div>
+          </section>
+
+          <section aria-labelledby={`${formId}-text`} className="editor__section">
+            {sectionHead('text', 'Summary & transcript')}
+            <TextArea
+              label="Short summary (shown under the video)"
+              rows={4}
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+            />
+            <TextArea
+              label="Transcript (optional)"
+              rows={6}
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              hint={
+                <>
+                  One line per cue starting with a time, e.g. <code>1:05 Adding vectors</code>. You can also paste
+                  YouTube’s “Show transcript” text or a .vtt file.{' '}
+                  {transcript.trim() && <strong>{cues.length} timed lines found.</strong>}
+                </>
+              }
+            />
+          </section>
+
+          <section aria-labelledby={`${formId}-questions`} className="editor__section">
+            {sectionHead('questions', 'Check questions')}
+            <Toggle
+              label="End-of-lesson check questions"
+              hint="0–3 multiple-choice practice questions with instant feedback. Not graded."
+              checked={checkOn}
+              onChange={setCheckOn}
+            />
+            {checkOn && (
+              <div className="qedit">
+                {questions.map((q, i) => (
+                  <QuestionEditor
+                    key={q.key}
+                    n={i + 1}
+                    q={q}
+                    onChange={(patch) => updateQuestion(q.key, patch)}
+                    onRemove={() => removeQuestion(q)}
+                  />
+                ))}
+                {questions.length < MAX_QUESTIONS && (
+                  <button type="button" className="btn btn--ghost btn--small" onClick={() => setQuestions((qs) => [...qs, blankQuestion()])}>
+                    + Add question ({questions.length}/{MAX_QUESTIONS})
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby={`${formId}-confusion`} className="editor__section">
+            {sectionHead('confusion', 'Confusion box')}
+            <Toggle
+              label="“What was confusing?” sticky note under this lesson"
+              hint="Students can leave you a note. You’ll find them under Notes."
+              checked={confusionOn}
+              onChange={setConfusionOn}
+            />
+          </section>
+
+          {!isNew && (
+            <section className="editor__section dangerzone" aria-label="Delete lesson">
+              <button type="button" className="linkish danger" onClick={() => void remove()}>
+                Delete this lesson…
+              </button>
+            </section>
+          )}
         </div>
 
         <aside className="editor__side">
+          <nav className="editor__index" aria-label="Sections of this form">
+            <p className="editor__index-h">On this page</p>
+            <ul>
+              {SECTIONS.map((sec) => (
+                <li key={sec.id}>
+                  <button type="button" onClick={() => jumpTo(sec.id)}>
+                    {sec.label}
+                    {sec.id === 'questions' && checkOn && <span className="muted"> {questions.length}</span>}
+                    {sec.id === 'confusion' && <span className="muted"> {confusionOn ? 'on' : 'off'}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
           {youtubeId ? (
             <LessonPlayer
               key={youtubeId}
@@ -352,6 +451,34 @@ export function LessonEditor() {
             </div>
           )}
         </aside>
+
+        {/* Always on screen: what's unsaved, and the buttons to keep or drop it. */}
+        <div className="savebar">
+          <p className={dirty ? 'savebar__status savebar__status--dirty' : 'savebar__status'} role="status">
+            <span className="savebar__dot" aria-hidden="true" />
+            {status}
+          </p>
+          {error && (
+            <p className="savebar__error" role="alert">
+              {error}
+            </p>
+          )}
+          <span className="savebar__actions">
+            {dirty && (
+              <button type="button" className="btn btn--ghost btn--small" onClick={discard} disabled={busy}>
+                Discard changes
+              </button>
+            )}
+            {!isNew && (
+              <Link className="btn btn--ghost btn--small" to={`/lesson/${params.lessonId}`}>
+                Preview
+              </Link>
+            )}
+            <button className="btn btn--small" disabled={busy}>
+              {busy ? 'Saving…' : 'Save lesson'}
+            </button>
+          </span>
+        </div>
       </form>
     </div>
   )

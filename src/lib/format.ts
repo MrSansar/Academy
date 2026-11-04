@@ -63,8 +63,14 @@ export function formatJoinCode(code: string): string {
   return code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code
 }
 
+/** Watched share: rounds DOWN so 89.6% never shows as 90% (the completion mark). */
 export function pct(value: number | null | undefined): string {
   return `${Math.floor(value ?? 0)}%`
+}
+
+/** Rates (e.g. right on the first try): nearest whole percent, so 2 of 3 is 67%. */
+export function pctRound(value: number | null | undefined): string {
+  return `${Math.round(value ?? 0)}%`
 }
 
 const timeOnly = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
@@ -80,14 +86,20 @@ export function calendarDaysBetween(a: Date, b: Date): number {
   return Math.round((db - da) / 86_400_000)
 }
 
-/** For sentences: "today at 3:15 PM", "tomorrow at 9:00 AM", "on Friday", "on Nov 20". */
+/**
+ * The one way the app writes a due time, in sentences and lists alike:
+ * "today at 3:15 PM", "tomorrow at 9:00 AM", "yesterday at 9:00 AM", "on Friday at 3:15 PM",
+ * "on Nov 20 at 3:15 PM".
+ */
 export function dayPhrase(iso: string, now = new Date()): string {
   const d = new Date(iso)
   const days = calendarDaysBetween(now, d)
-  if (days === 0) return `today at ${timeOnly.format(d)}`
-  if (days === 1) return `tomorrow at ${timeOnly.format(d)}`
-  if (days > 1 && days < 7) return `on ${weekdayLong.format(d)}`
-  return `on ${monthDay.format(d)}`
+  const at = timeOnly.format(d)
+  if (days === 0) return `today at ${at}`
+  if (days === 1) return `tomorrow at ${at}`
+  if (days === -1) return `yesterday at ${at}`
+  if (days > 1 && days < 7) return `on ${weekdayLong.format(d)} at ${at}`
+  return `on ${monthDay.format(d)} at ${at}`
 }
 
 /** Parts for a tear-off calendar page: { weekday: "Wed", day: "4", month: "Nov", time: "3:15 PM" }. */

@@ -37,7 +37,8 @@ export function LessonBadge({ status, percent }: { status: LessonStatus; percent
   return <span className="badge badge--not_started">Not started</span>
 }
 
-export function ProgressBar({ value, label }: { value: number; label: string }) {
+/** Watched meter: solid amber while under way, green once past the goal, with a labelled goal mark. */
+export function ProgressBar({ value, label, goal = 90 }: { value: number; label: string; goal?: number }) {
   const v = Math.max(0, Math.min(100, value))
   return (
     <div
@@ -48,8 +49,12 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
       aria-valuemax={100}
       aria-valuenow={Math.floor(v)}
     >
-      <div className="pbar__fill" style={{ width: `${v}%` }} />
-      <div className="pbar__mark" style={{ left: '90%' }} aria-hidden="true" />
+      <div className="pbar__track">
+        <div className={v >= goal ? 'pbar__fill pbar__fill--done' : 'pbar__fill'} style={{ width: `${v}%` }} />
+      </div>
+      <span className="pbar__goal" style={{ left: `${goal}%` }} aria-hidden="true">
+        <span className="pbar__goal-label">{goal}%</span>
+      </span>
     </div>
   )
 }

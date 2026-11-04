@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   classesForNote,
+  isRecentNote,
   prepFor,
   progressKey,
   quizByLesson,
   studentSummary,
   upcomingAssignments,
   urgency,
+  withHandled,
   type OvClass,
   type OvProgress,
 } from './teacherOverview'
@@ -72,8 +74,8 @@ describe('studentSummary', () => {
       { student_id: 'ana', lesson_id: 'l1', completed_at: iso(-2 * HOUR), last_watched_at: iso(-2 * HOUR) },
     ])
     const notes = [
-      { id: 1, body: 'x', created_at: iso(-HOUR), lessonId: 'l1', lessonTitle: 'l1', studentId: 'ana', studentName: 'Ana' },
-      { id: 2, body: 'y', created_at: iso(-HOUR), lessonId: 'other', lessonTitle: 'o', studentId: 'ana', studentName: 'Ana' },
+      { id: 1, body: 'x', created_at: iso(-HOUR), handledAt: null, lessonId: 'l1', lessonTitle: 'l1', studentId: 'ana', studentName: 'Ana' },
+      { id: 2, body: 'y', created_at: iso(-HOUR), handledAt: null, lessonId: 'other', lessonTitle: 'o', studentId: 'ana', studentName: 'Ana' },
     ]
     const s = studentSummary(ana, cls, p, notes, now)
     expect(s).toEqual({ assigned: 3, done: 2, missed: 1, lastActive: iso(-HOUR), notes: 1 })
@@ -118,5 +120,26 @@ describe('quizByLesson', () => {
     const r = quizByLesson(qs, tries)
     expect(r.get('l1')).toEqual({ questions: 2, answered: 2, firstTryRight: 1 })
     expect(r.get('l2')).toEqual({ questions: 1, answered: 0, firstTryRight: 0 })
+  })
+})
+
+describe('handled notes', () => {
+  it('calls a note new only while it is open and under a day old', () => {
+    expect(isRecentNote({ created_at: iso(-2 * HOUR), handledAt: null }, now)).toBe(true)
+    expect(isRecentNote({ created_at: iso(-30 * HOUR), handledAt: null }, now)).toBe(false)
+    expect(isRecentNote({ created_at: iso(-2 * HOUR), handledAt: iso(-HOUR) }, now)).toBe(false)
+  })
+  it('updates only the chosen notes, and keeps the first handled time', () => {
+    const notes = [
+      { id: 1, handledAt: null },
+      { id: 2, handledAt: '2026-11-01T00:00:00Z' },
+      { id: 3, handledAt: null },
+    ]
+    expect(withHandled(notes, [1, 2], true, 'NOW')).toEqual([
+      { id: 1, handledAt: 'NOW' },
+      { id: 2, handledAt: '2026-11-01T00:00:00Z' },
+      { id: 3, handledAt: null },
+    ])
+    expect(withHandled(notes, [2], false, 'NOW')[1]).toEqual({ id: 2, handledAt: null })
   })
 })

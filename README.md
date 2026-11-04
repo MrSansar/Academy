@@ -12,7 +12,8 @@ Browser (GitHub Pages)  ──anon key + user JWT──▶  Supabase
   React app                                         Auth (email + password)
   YouTube IFrame API ── watch intervals ──▶         Postgres + RLS
                                                     RPC: save_progress, open_lesson,
-                                                         submit_answer, join_class
+                                                         submit_answer, join_class,
+                                                         set_notes_handled
 ```
 
 There is no server of our own: everything goes through Supabase, and Row Level Security decides
@@ -31,13 +32,20 @@ shows lessons done vs. assigned per class.
 The student side is designed like a school notebook: a chalkboard header over paper with a red
 margin line. Home opens with the date, a greeting and one plain sentence about what's left before the
 next class (“Before Physics 101 tomorrow at 3:15 PM, you have 2 short videos left…”) with a Start
-button. Each assignment is a tear-off calendar date and a to-do list with hand-drawn checkboxes;
-classes are marked with their own highlighter colour; teacher instructions appear in handwriting.
-Finishing a lesson thumps a rubber DONE stamp onto the page with chalk-dust confetti. Practice
+button. Each assignment is a tear-off calendar date, its progress (“1 of 3 done”) on the first line,
+and a to-do list with round status marks (empty, half, done) that tick themselves at 90% watched;
+classes are marked with their own highlighter colour; the teacher’s instructions appear under
+“From your teacher”. Due times are always written the same way (“tomorrow at 3:15 PM”). Finishing
+a lesson thumps a green DONE stamp onto the page with chalk-dust confetti. Practice
 questions look like a bubble answer sheet: a green tick is drawn on for a right answer, red pen for a
 wrong one. “What was confusing?” is a sticky note. *My progress* is a gold-star sticker chart. A dark
 theme turns the whole page into a chalkboard (it follows the OS until you pick one with the moon
-button). Animations are off for anyone who asks the OS for reduced motion. Still no streaks, points, badges or leaderboards: students only ever see their own progress.
+button). Animations are off for anyone who asks the OS for reduced motion.
+
+Each colour has one job: ink for text, graphite for margin notes, blue ink for links and the
+teacher’s words, green for done and right, amber for under way or due soon, highlighters for which
+class, and red **only** for problems (a wrong answer, late, not done before class, not opened in the
+last 24 hours, remove / delete). Still no streaks, points, badges or leaderboards: students only ever see their own progress.
 
 **Navigation.** Students have two sections, *Assignments* and *My progress*; joining another class,
 the theme and signing out live in the name menu at the top right. A lesson page says “Lesson 2 of 3”,
@@ -46,14 +54,16 @@ sections, which stay highlighted on every page inside them:
 
 | Section | What's there |
 | --- | --- |
-| **Dashboard** | What's due this week across all classes: for each assignment, a ready / started / not opened bar and the names of students who haven't opened it (amber within 3 days of class, red within 24 hours). The newest confusion notes. Quick links to each class. |
-| **Classes** | Every class with its join code and how many are ready for the next assignment. A class page lists its assignments (with the same bar) and a student table: lessons done, lessons not done before class, last active, notes. Each name opens that **student's page**: every assigned lesson with % watched, when it was finished (and whether late), first-try quiz score, and their notes on it. |
-| **Lessons** | Courses and their lessons (the editor). |
-| **Notes** | Every “What was confusing?” note, newest first, filterable by class and lesson, optionally grouped by lesson. Notes that arrived since you last opened this page are marked **New**, and their count shows next to *Notes* in the bar. (What you've read is remembered in this browser, so another device starts fresh.) |
+| **Dashboard** | What's due this week across all classes: for each assignment, a ready / started / not opened bar and the names of students who haven't opened it (amber within 3 days of class, red within 24 hours). The open confusion notes, with *Mark handled*. Quick links to each class. |
+| **Classes** | Every class with its join code and how many are ready for the next assignment. A class page lists its assignments (with the same bar) and a student table: lessons done, *not done before class* (explained under the table), last active, notes. Each name opens that **student's page**: every assigned lesson with % watched, when it was finished (and whether late), first-try quiz score, their notes on it, and *Remove from class*. |
+| **Courses** | Courses and their lessons. The lesson editor keeps a save bar on screen (“Unsaved changes”, Discard, Preview, Save), has an *On this page* index, and warns before you leave with unsaved changes. |
+| **Notes** | Every “What was confusing?” note in **Open / Handled / All** tabs, filterable by class and lesson, grouped by lesson. *Mark handled* once you've answered a note, or *Covered in class* for a whole lesson; both can be undone. Handled is saved on the note (`handled_at`, `handled_by`), so the open count next to *Notes* is the same on every device. **New** = open and less than a day old. Students don't see whether a note was handled. |
 
 Every teacher page has breadcrumbs (e.g. *Classes / Physics 101 / Ana Lopez*). The per-assignment
-report still has the students × lessons table, first-try % correct per check question with the
-answer distribution, the notes for its lessons, and CSV export (per assignment, or the whole class).
+report has the prep bar, the students × lessons table, first-try % correct per check question with
+the answer distribution (rounded to the nearest percent; under 3 answers it says “too few to tell”
+instead), the notes for its lessons with the same handled actions, and CSV export (per assignment, or
+the whole class).
 The editor creates courses, lessons, classes and assignments, reorders lessons, sets due dates, and
 toggles questions / the confusion box per lesson. Lessons over 10 minutes get a soft warning.
 
@@ -83,8 +93,8 @@ toggles questions / the confusion box per lesson. Lessons over 10 minutes get a 
 The project `chalkline` (Tokyo, free tier) already has the schema applied. To set up a fresh project:
 
 1. Create a project at [supabase.com](https://supabase.com/dashboard).
-2. Apply the migration in [`supabase/migrations/`](supabase/migrations/). Either paste the file into
-   **SQL Editor** and run it, or with the CLI:
+2. Apply the migrations in [`supabase/migrations/`](supabase/migrations/), oldest first. Either paste
+   each file into **SQL Editor** and run it, or with the CLI:
    ```bash
    supabase link --project-ref <your-project-ref>
    ```
@@ -120,7 +130,7 @@ Students can’t change their own role: the `role` column isn’t writable throu
 
 1. Upload the video to YouTube as **Unlisted**, and make sure **Allow embedding** is on (YouTube
    Studio → video → Show more → License and distribution). Add or auto-generate captions.
-2. On the site: **Lessons → New course** (once), open the course, then **New lesson**.
+2. On the site: **Courses → New course** (once), open the course, then **New lesson**.
 3. Paste the YouTube link. The preview loads and the length fills in automatically. Videos over
    10 minutes show a reminder that ~6-minute videos get watched more.
 4. Add a short summary and, optionally, a transcript. One cue per line, starting with a time:
@@ -194,10 +204,11 @@ ready, lessons missed, first-try quiz scores, which class a note belongs to).
 ```bash
 supabase test db
 ```
-44 pgTAP checks against the local database. They cover the sign-up trigger, join codes,
+51 pgTAP checks against the local database. They cover the sign-up trigger, join codes,
 interval merging and the 90% rule, the watch-rate check, and RLS. Students can’t read each other’s
 progress, notes, answers, enrollments or the answer key. Nobody can write progress directly, make
-themselves a teacher, or see unassigned lessons. Anon gets nothing.
+themselves a teacher, or see unassigned lessons. Only the teacher can mark notes handled, and
+`handled_by` is always the teacher who did it. Anon gets nothing.
 
 ## Data model
 
@@ -206,7 +217,7 @@ profiles (id = auth user, role student|teacher)
 courses ─┬─ lessons (youtube_id, duration, summary, transcript, check_enabled, confusion_enabled)
          │     ├─ questions ── question_keys (teacher-only answer + explanation)
          │     │      └─ question_attempts (every try, timestamped)
-         │     ├─ confusion_notes
+         │     ├─ confusion_notes (handled_at, handled_by: set by the teacher via set_notes_handled)
          │     └─ lesson_progress (per student: intervals, %, first opened, last watched, completed)
          └─ classes (join_code) ─┬─ enrollments (student ↔ class)
                                  └─ assignments (due_at) ── assignment_lessons (ordered)

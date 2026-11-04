@@ -1,22 +1,23 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
-import { Checkbox } from '../../components/Notebook'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router'
+import { StatusMark } from '../../components/Notebook'
 import { Crumbs, ErrorNote, Loading } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
-import { formatDue, formatMinutes, formatRelative, formatShort, pct } from '../../lib/format'
-import { isNewNote, useNotesSeenAt } from '../../lib/notesSeen'
-import { errorMessage } from '../../lib/supabase'
+import { dayPhrase, formatMinutes, formatRelative, formatShort, pct } from '../../lib/format'
+import { errorMessage, supabase } from '../../lib/supabase'
 import {
   loadOverview,
   loadStudentQuiz,
   progressKey,
   studentSummary,
   type OvAssignment,
+  type OvNote,
   type Overview,
   type QuizResult,
 } from '../../lib/teacherOverview'
 import { lessonStatus } from '../../lib/types'
-import { NoteCard } from './parts'
+import { useNoteActions } from '../../lib/useNoteActions'
+import { NoteActionStatus, NoteCard } from './parts'
 
 /** Everything one student has done in one class: every lesson, quiz results and their notes. */
 export function StudentPage() {
@@ -25,7 +26,10 @@ export function StudentPage() {
   const [quiz, setQuiz] = useState<Map<string, QuizResult>>(new Map())
   const [loadedAt, setLoadedAt] = useState(0)
   const [error, setError] = useState('')
-  const seenAt = useNotesSeenAt()
+  const [removeError, setRemoveError] = useState('')
+  const navigate = useNavigate()
+  const updateNotes = useCallback((fn: (n: OvNote[]) => OvNote[]) => setData((d) => d && { ...d, notes: fn(d.notes) }), [])
+  const actions = useNoteActions(updateNotes)
   const cls = data?.classes[0]
   const student = cls?.students[0]
   usePageTitle(student?.name ?? 'Student')
@@ -56,6 +60,14 @@ export function StudentPage() {
       </div>
     )
 
+  async function removeStudent() {
+    if (!cls || !student) return
+    if (!window.confirm(`Remove ${student.name} from ${cls.name}? Their watch history is kept and returns if they rejoin.`)) return
+    const { error } = await supabase.from('enrollments').delete().eq('class_id', cls.id).eq('student_id', student.id)
+    if (error) setRemoveError(errorMessage(error))
+    else navigate(`/teach/classes/${cls.id}`, { replace: true })
+  }
+
   const sum = studentSummary(student, cls, data.progress, data.notes, loadedAt)
   const upcoming = cls.assignments.filter((a) => new Date(a.due_at).getTime() >= loadedAt)
   const past = cls.assignments.filter((a) => new Date(a.due_at).getTime() < loadedAt).reverse()
@@ -67,7 +79,8 @@ export function StudentPage() {
         <Link to={`/teach/assignments/${a.id}`}>{a.title}</Link>
       </h3>
       <p className="log__due muted small">
-        Before class on <time dateTime={a.due_at}>{formatDue(a.due_at)}</time>
+        {new Date(a.due_at).getTime() < loadedAt ? 'Was due' : 'Due'}{' '}
+        <time dateTime={a.due_at}>{dayPhrase(a.due_at, new Date(loadedAt))}</time>
       </p>
       <ol className="log__lessons">
         {a.lessons.map((l) => {
@@ -79,7 +92,7 @@ export function StudentPage() {
           return (
             <li key={l.id} className="log__lesson">
               <div className="log__row">
-                <Checkbox status={status} />
+                <StatusMark status={status} />
                 <span className="log__name">
                   {l.title} <span className="muted small">{formatMinutes(l.duration_seconds)}</span>
                 </span>
@@ -117,10 +130,11 @@ export function StudentPage() {
                     <NoteCard
                       key={n.id}
                       note={n}
+                      now={loadedAt}
                       classes={data.classes}
-                      isNew={isNewNote(n.created_at, seenAt)}
                       showLesson={false}
                       showStudent={false}
+                      onHandle={actions.toggle}
                     />
                   ))}
                 </ul>
@@ -148,6 +162,7 @@ export function StudentPage() {
         </p>
       </header>
 
+      <NoteActionStatus status={actions.status} error={actions.error} />
       <ul className="stats" aria-label="Summary">
         <li>
           <strong>
@@ -189,6 +204,18 @@ export function StudentPage() {
         Complete = 90% of the video’s seconds actually played. “Late” = finished after class started. Quiz scores count
         each question’s first try only.
       </p>
+
+      <section className="section dangerzone" aria-labelledby="rm-h">
+        <h2 id="rm-h" className="rulehead">Remove from {cls.name}</h2>
+        <p className="muted">
+          {firstName} will no longer see this class’s assignments. Their watch history is kept and comes back if they
+          rejoin with the code.
+        </p>
+        <button type="button" className="btn btn--ghost btn--danger btn--small" onClick={() => void removeStudent()}>
+          Remove {student.name} from {cls.name}
+        </button>
+        <ErrorNote>{removeError}</ErrorNote>
+      </section>
     </div>
   )
 }
