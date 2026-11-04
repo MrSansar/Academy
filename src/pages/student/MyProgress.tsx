@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
-import { ClassMark, StarSticker, TodoRow } from '../../components/Notebook'
+import { ClassMark, StarSticker, StatusKey, TodoRow } from '../../components/Notebook'
 import { ErrorNote, Loading } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
-import { formatDue } from '../../lib/format'
+import { dayPhrase } from '../../lib/format'
 import { loadMyAssignments, loadMyClasses, loadMyProgress, type MyClass, type StudentAssignment } from '../../lib/studentData'
 import { errorMessage } from '../../lib/supabase'
 import { lessonStatus, type LessonProgress } from '../../lib/types'
@@ -21,17 +21,18 @@ export function MyProgress() {
   const { session } = useAuth()
   const userId = session!.user.id
   usePageTitle('My progress')
-  const [data, setData] = useState<{ a: StudentAssignment[]; c: MyClass[]; p: Map<string, LessonProgress> } | null>(null)
+  const [data, setData] = useState<{ a: StudentAssignment[]; c: MyClass[]; p: Map<string, LessonProgress>; at: number } | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
     Promise.all([loadMyAssignments(), loadMyClasses(userId), loadMyProgress(userId)])
-      .then(([a, c, p]) => setData({ a, c, p }))
+      .then(([a, c, p]) => setData({ a, c, p, at: Date.now() }))
       .catch((e) => setError(errorMessage(e)))
   }, [userId])
 
   if (error) return <div className="page"><ErrorNote>{error}</ErrorNote></div>
   if (!data) return <div className="page"><Loading label="Loading your progress" /></div>
+  const now = new Date(data.at)
 
   return (
     <div className="page notebook">
@@ -39,6 +40,7 @@ export function MyProgress() {
         <h1 className="today__hello">My progress</h1>
         <p className="today__lede">A star for every lesson you finish. Only you and your teacher can see this page.</p>
       </header>
+      {data.c.length > 0 && <StatusKey />}
       {data.c.length === 0 && (
         <p className="nothing">
           You’re not in a class yet. <Link to="/join">Join a class</Link>
@@ -83,7 +85,7 @@ export function MyProgress() {
                         title={r.title}
                         status={lessonStatus(p)}
                         percent={p?.percent_watched}
-                        meta={`due ${formatDue(r.dueAt)}`}
+                        meta={`due ${dayPhrase(r.dueAt, now)}`}
                       />
                     )
                   })}

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { DateTab } from '../../components/Notebook'
 import { Crumbs, ErrorNote, Field, Loading } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
-import { formatDue, formatJoinCode, formatRelative, formatShort } from '../../lib/format'
+import { dayPhrase, formatDue, formatJoinCode, formatRelative, formatShort } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import { exportClassCsv } from '../../lib/teacherData'
 import { studentPath, loadOverview, prepFor, studentSummary, urgency, type Overview } from '../../lib/teacherOverview'
@@ -55,13 +55,6 @@ export function ClassPage() {
     e.preventDefault()
     await update({ name: name.trim() })
     setRenaming(false)
-  }
-
-  async function removeStudent(id: string, who: string) {
-    if (!window.confirm(`Remove ${who} from this class? Their watch history is kept and returns if they rejoin.`)) return
-    const { error } = await supabase.from('enrollments').delete().eq('class_id', classId).eq('student_id', id)
-    if (error) setError(errorMessage(error))
-    else await load()
   }
 
   async function exportCsv() {
@@ -118,16 +111,16 @@ export function ClassPage() {
                 const prep = prepFor(a, cls.students, data.progress)
                 return (
                   <li key={a.id} className="agenda__item">
-                    <DateTab iso={a.due_at} />
+                    <DateTab iso={a.due_at} urgent={urgency(a.due_at, loadedAt) === 'urgent'} />
                     <div className="agenda__body">
                       <h3 className="agenda__title">
                         <Link to={`/teach/assignments/${a.id}`}>{a.title}</Link>
                       </h3>
                       <p className="agenda__due">
-                        Before class on <time dateTime={a.due_at}>{formatDue(a.due_at)}</time>
+                        Due <time dateTime={a.due_at}>{dayPhrase(a.due_at, new Date(loadedAt))}</time>
                         <span className="muted">
                           {' '}
-                          · {formatRelative(a.due_at, loadedAt)} · {a.lessons.length}{' '}
+                          · {a.lessons.length}{' '}
                           {a.lessons.length === 1 ? 'lesson' : 'lessons'} ·{' '}
                           <Link to={`/teach/assignments/${a.id}/edit`}>Edit</Link>
                         </span>
@@ -178,7 +171,6 @@ export function ClassPage() {
       <section className="section" aria-labelledby="st-h">
         <h2 id="st-h" className="rulehead">
           Students
-          <span className="rulehead__aside">select a name to see everything they’ve done</span>
           <button className="linkish rulehead__end" onClick={() => void exportCsv()} disabled={exporting}>
             {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
@@ -194,12 +186,9 @@ export function ClassPage() {
                 <tr>
                   <th scope="col">Student</th>
                   <th scope="col">Lessons done</th>
-                  <th scope="col">Missed</th>
+                  <th scope="col">Not done before class</th>
                   <th scope="col">Last active</th>
                   <th scope="col">Notes</th>
-                  <th scope="col">
-                    <span className="visually-hidden">Actions</span>
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -215,9 +204,7 @@ export function ClassPage() {
                       </span>
                       {sum.done} of {sum.assigned}
                     </td>
-                    <td className={sum.missed ? 'cell cell--missed' : 'cell muted'} title="Lessons not finished by the time class started">
-                      {sum.missed}
-                    </td>
+                    <td className={sum.missed ? 'cell cell--missed' : 'cell muted'}>{sum.missed}</td>
                     <td className="cell">
                       {sum.lastActive ? (
                         <time dateTime={sum.lastActive} title={formatShort(sum.lastActive)}>
@@ -228,16 +215,18 @@ export function ClassPage() {
                       )}
                     </td>
                     <td className="cell">{sum.notes || <span className="muted">0</span>}</td>
-                    <td>
-                      <button className="linkish danger" onClick={() => void removeStudent(s.id, s.name)}>
-                        Remove<span className="visually-hidden"> {s.name}</span>
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+        {rows.length > 0 && (
+          <p className="legend muted small">
+            <strong>Not done before class</strong> counts lessons that weren’t finished by the time class started,
+            including ones finished late. Select a name to see every lesson, quiz score and note, or to remove the student
+            from this class.
+          </p>
         )}
       </section>
 

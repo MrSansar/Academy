@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
-import { useNotesSeenAt } from '../lib/notesSeen'
 import { supabase } from '../lib/supabase'
+import { NOTES_CHANGED } from '../lib/teacherOverview'
 import { useTheme } from '../lib/theme'
 import { DoodleField } from './Doodles'
 import { SunMoon } from './Notebook'
@@ -20,7 +20,7 @@ const STUDENT_NAV: NavItem[] = [
   { to: '/progress', label: 'My progress', match: (p) => p.startsWith('/progress') },
 ]
 
-function teacherNav(newNotes: number): NavItem[] {
+function teacherNav(openNotes: number): NavItem[] {
   return [
     { to: '/teach', label: 'Dashboard', match: (p) => p === '/teach' || p === '/teach/' },
     {
@@ -30,27 +30,37 @@ function teacherNav(newNotes: number): NavItem[] {
     },
     {
       to: '/teach/courses',
-      label: 'Lessons',
+      label: 'Courses',
       match: (p) => p.startsWith('/teach/courses') || p.startsWith('/teach/lessons') || p.startsWith('/lesson/'),
     },
-    { to: '/teach/notes', label: 'Notes', match: (p) => p.startsWith('/teach/notes'), badge: newNotes },
+    { to: '/teach/notes', label: 'Notes', match: (p) => p.startsWith('/teach/notes'), badge: openNotes },
   ]
 }
 
-/** How many notes arrived since the teacher last opened the Notes page (re-checked on navigation). */
-function useNewNotesCount(enabled: boolean, path: string): number {
-  const seenAt = useNotesSeenAt()
+/**
+ * How many notes are still open (not handled). Stored on the notes, so it is the same on every
+ * device; re-checked on navigation and whenever a note is handled.
+ */
+function useOpenNotesCount(enabled: boolean, path: string): number {
   const [count, setCount] = useState(0)
+  const [bump, setBump] = useState(0)
+  useEffect(() => {
+    const onChange = () => setBump((n) => n + 1)
+    window.addEventListener(NOTES_CHANGED, onChange)
+    return () => window.removeEventListener(NOTES_CHANGED, onChange)
+  }, [])
   useEffect(() => {
     if (!enabled) return
     let active = true
-    let q = supabase.from('confusion_notes').select('id', { count: 'exact', head: true })
-    if (seenAt) q = q.gt('created_at', seenAt)
-    void q.then(({ count: n }) => active && setCount(n ?? 0))
+    void supabase
+      .from('confusion_notes')
+      .select('id', { count: 'exact', head: true })
+      .is('handled_at', null)
+      .then(({ count: n }) => active && setCount(n ?? 0))
     return () => {
       active = false
     }
-  }, [enabled, seenAt, path])
+  }, [enabled, path, bump])
   return enabled ? count : 0
 }
 
@@ -58,8 +68,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const { isTeacher } = useAuth()
   const location = useLocation()
   const mainRef = useRef<HTMLElement>(null)
-  const newNotes = useNewNotesCount(isTeacher, location.pathname)
-  const items = isTeacher ? teacherNav(newNotes) : STUDENT_NAV
+  const openNotes = useOpenNotesCount(isTeacher, location.pathname)
+  const items = isTeacher ? teacherNav(openNotes) : STUDENT_NAV
 
   // Move focus to the page on navigation so screen-reader and keyboard users start at the top.
   const first = useRef(true)
@@ -91,7 +101,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   {it.badge ? (
                     <span className="nav__badge">
                       {it.badge > 99 ? '99+' : it.badge}
-                      <span className="visually-hidden"> new</span>
+                      <span className="visually-hidden"> open</span>
                     </span>
                   ) : null}
                 </Link>

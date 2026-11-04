@@ -15,7 +15,7 @@ interface CourseRow {
 
 /** The lesson library: courses hold lessons, and classes take their lessons from a course. */
 export function CoursesPage() {
-  usePageTitle('Lessons')
+  usePageTitle('Courses')
   const navigate = useNavigate()
   const [courses, setCourses] = useState<CourseRow[] | null>(null)
   const [error, setError] = useState('')
@@ -45,14 +45,14 @@ export function CoursesPage() {
     navigate(`/teach/courses/${data.id}`)
   }
 
-  if (!courses) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading lessons" />}</div>
+  if (!courses) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading courses" />}</div>
 
   return (
     <div className="page teach">
-      <Crumbs items={[{ label: 'Dashboard', to: '/teach' }, { label: 'Lessons' }]} />
+      <Crumbs items={[{ label: 'Dashboard', to: '/teach' }, { label: 'Courses' }]} />
       <header className="pagehead">
-        <h1>Lessons</h1>
-        <p className="muted">Your videos, grouped into courses. A class takes its lessons from one course.</p>
+        <h1>Courses</h1>
+        <p className="muted">Each course holds a set of lessons (your videos). A class takes its lessons from one course.</p>
       </header>
       <ErrorNote>{error}</ErrorNote>
 

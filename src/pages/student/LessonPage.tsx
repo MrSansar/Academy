@@ -10,7 +10,7 @@ import { Crumbs, ErrorNote, Loading } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
 import { burst } from '../../lib/confetti'
 import { completeLineFor } from '../../lib/fun'
-import { formatDue, formatMinutes } from '../../lib/format'
+import { dayPhrase, formatMinutes } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import type { Lesson, LessonProgress, Question } from '../../lib/types'
 
@@ -115,7 +115,7 @@ export function LessonPage() {
         items={
           isTeacher
             ? [
-                { label: 'Lessons', to: '/teach/courses' },
+                { label: 'Courses', to: '/teach/courses' },
                 { label: lesson.title, to: `/teach/lessons/${lesson.id}` },
                 { label: 'Student preview' },
               ]
@@ -168,7 +168,7 @@ export function LessonPage() {
           {formatMinutes(lesson.duration_seconds)}
           {assignment && (
             <>
-              {' · '}Due before class on <time dateTime={assignment.due_at}>{formatDue(assignment.due_at)}</time>
+              {' · '}Due <time dateTime={assignment.due_at}>{dayPhrase(assignment.due_at)}</time>, before class
             </>
           )}
         </p>

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../../auth/AuthProvider'
-import { ClassMark, DateTab, PenArrow, Stamp, TodoRow } from '../../components/Notebook'
+import { ClassMark, DateTab, PenArrow, Stamp, StatusKey, TodoRow } from '../../components/Notebook'
 import { ErrorNote, Loading } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
 import { greeting, tipOfTheDay } from '../../lib/fun'
-import { dayPhrase, formatDue, formatMinutes, formatRelative } from '../../lib/format'
+import { dayPhrase, formatMinutes } from '../../lib/format'
 import { loadMyAssignments, loadMyClasses, loadMyProgress, type MyClass, type StudentAssignment } from '../../lib/studentData'
 import { errorMessage } from '../../lib/supabase'
 import { lessonStatus, type LessonProgress } from '../../lib/types'
@@ -67,6 +67,7 @@ export function Home() {
         upcoming.length > 0 && (
           <section aria-labelledby="due-h">
             <h2 id="due-h" className="rulehead">Due before class</h2>
+            <StatusKey />
             <ol className="agenda">
               {upcoming.map((a) => (
                 <AgendaItem key={a.id} a={a} progress={progress} now={now} />
@@ -150,32 +151,44 @@ function Lede({ upcoming, progress, now }: { upcoming: StudentAssignment[]; prog
   )
 }
 
+const DAY = 86_400_000
+
 function AgendaItem({ a, progress, now }: { a: StudentAssignment; progress: Map<string, LessonProgress>; now: Date }) {
   const statuses = a.lessons.map((l) => lessonStatus(progress.get(l.id)))
   const done = statuses.filter((s) => s === 'complete').length
   const allDone = a.lessons.length > 0 && done === a.lessons.length
   const total = a.lessons.reduce((t, l) => t + l.duration_seconds, 0)
-  const isPast = new Date(a.due_at) < now
+  const left = new Date(a.due_at).getTime() - now.getTime()
+  const isPast = left < 0
 
   return (
     <li className={allDone ? 'agenda__item agenda__item--done' : 'agenda__item'}>
-      <DateTab iso={a.due_at} />
+      <DateTab iso={a.due_at} urgent={!allDone && !isPast && left < DAY} />
       <div className="agenda__body">
-        {a.className && (
-          <p className="agenda__class">
-            <ClassMark id={a.classId} name={a.className} />
-          </p>
-        )}
+        <div className="agenda__top">
+          {a.className && <ClassMark id={a.classId} name={a.className} />}
+          {allDone ? (
+            <Stamp seed={a.id}>Done</Stamp>
+          ) : (
+            <span className="agenda__progress">
+              <span className="minibar" aria-hidden="true">
+                <span style={{ width: `${a.lessons.length ? (done / a.lessons.length) * 100 : 0}%` }} />
+              </span>
+              {done} of {a.lessons.length} done
+            </span>
+          )}
+        </div>
         <h3 className="agenda__title">{a.title}</h3>
         <p className="agenda__due">
-          Due before class on <time dateTime={a.due_at}>{formatDue(a.due_at)}</time>
-          <span className="muted"> · {isPast ? 'class has started' : formatRelative(a.due_at, now.getTime())}</span>
+          {isPast ? 'Was due' : 'Due'} <time dateTime={a.due_at}>{dayPhrase(a.due_at, now)}</time>
+          {!isPast && ', before class'}
+          <span className="muted"> · about {formatMinutes(total)}</span>
         </p>
         {a.instructions && (
-          <p className="teacher-note">
-            <span className="visually-hidden">Note from your teacher: </span>
-            {a.instructions}
-          </p>
+          <div className="teacher-note">
+            <p className="teacher-note__from">From your teacher</p>
+            <p className="teacher-note__text">{a.instructions}</p>
+          </div>
         )}
         <ol className="todo">
           {a.lessons.map((l, i) => (
@@ -189,15 +202,7 @@ function AgendaItem({ a, progress, now }: { a: StudentAssignment; progress: Map<
             />
           ))}
         </ol>
-        <p className="agenda__foot">
-          {done} of {a.lessons.length} done · about {formatMinutes(total)} in all
-        </p>
       </div>
-      {allDone && (
-        <span className="agenda__stamp">
-          <Stamp seed={a.id}>Done</Stamp>
-        </span>
-      )}
     </li>
   )
 }

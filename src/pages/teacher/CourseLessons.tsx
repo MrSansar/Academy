@@ -56,7 +56,7 @@ export function CourseLessons() {
 
   return (
     <div className="page">
-      <Crumbs items={[{ label: 'Lessons', to: '/teach/courses' }, { label: course.title }]} />
+      <Crumbs items={[{ label: 'Courses', to: '/teach/courses' }, { label: course.title }]} />
       {editing ? (
         <CourseForm course={course} onDone={(c) => { if (c) setCourse(c); setEditing(false) }} />
       ) : (

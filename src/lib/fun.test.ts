@@ -47,11 +47,20 @@ describe('dayPhrase', () => {
     expect(dayPhrase(new Date(2026, 10, 3, 15, 15).toISOString(), now)).toMatch(/^today at /)
     expect(dayPhrase(new Date(2026, 10, 4, 0, 30).toISOString(), now)).toMatch(/^tomorrow at /)
   })
-  it('uses the weekday within a week, then the date', () => {
-    expect(dayPhrase(new Date(2026, 10, 6, 10, 0).toISOString(), now)).toMatch(/^on \S+day$/)
-    expect(dayPhrase(new Date(2026, 10, 20, 10, 0).toISOString(), now)).toMatch(/^on \D+ 20$/)
+  it('uses the weekday within a week, then the date, always with the time', () => {
+    expect(dayPhrase(new Date(2026, 10, 6, 10, 0).toISOString(), now)).toMatch(/^on \S+day at \d/)
+    expect(dayPhrase(new Date(2026, 10, 20, 10, 0).toISOString(), now)).toMatch(/^on \D+ 20 at \d/)
+    expect(dayPhrase(new Date(2026, 10, 2, 10, 0).toISOString(), now)).toMatch(/^yesterday at /)
   })
   it('counts calendar days, not 24-hour blocks', () => {
     expect(calendarDaysBetween(new Date(2026, 10, 3, 23, 50), new Date(2026, 10, 4, 0, 10))).toBe(1)
+  })
+})
+
+describe('percentages', () => {
+  it('rounds rates to the nearest percent but never rounds watched time up to the 90% mark', async () => {
+    const { pct, pctRound } = await import('./format')
+    expect(pctRound((2 / 3) * 100)).toBe('67%')
+    expect(pct(89.6)).toBe('89%')
   })
 })

@@ -15,21 +15,43 @@ const stroke = {
   strokeLinejoin: 'round' as const,
 }
 
-/** A pen-drawn box: empty, started (one slash), or ticked. */
-export function Checkbox({ status }: { status: LessonStatus }) {
+/**
+ * Lesson status as a round mark: empty (not started), half filled (started), filled with a tick
+ * (done). Round so it reads as a status, not as a box to tick: lessons tick themselves at 90%.
+ */
+export function StatusMark({ status, size = 24 }: { status: LessonStatus; size?: number }) {
   return (
-    <svg className={`cbox cbox--${status}`} viewBox="0 0 28 26" aria-hidden="true" focusable="false">
-      <path
-        className="cbox__box"
-        {...stroke}
-        strokeWidth={1.8}
-        d="M4.2 6.1c5-.9 10.4-1 15.6-.6.5 5 .6 9.9.1 14.9-5.1.6-10.3.7-15.4.2-.6-4.9-.7-9.6-.3-14.5z"
-      />
-      {status === 'in_progress' && <path className="cbox__slash" {...stroke} strokeWidth={2.2} d="M8 17.5L16.5 9" />}
-      {status === 'complete' && (
-        <path className="cbox__tick" {...stroke} strokeWidth={2.8} d="M7 13.5c1.6 1.4 3 3.2 4.1 5.3C14 12.6 18.6 6.6 25.5 1.8" />
+    <svg className={`smark smark--${status}`} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {status === 'complete' ? (
+        <>
+          <circle className="smark__done" cx="12" cy="12" r="10" />
+          <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : (
+        <>
+          {status === 'in_progress' && <path className="smark__half" d="M12 3a9 9 0 0 0 0 18z" />}
+          <circle className="smark__ring" cx="12" cy="12" r="9" fill="none" strokeWidth={1.8} />
+        </>
       )}
     </svg>
+  )
+}
+
+/** The key for StatusMark, shown once above a list of lessons. */
+export function StatusKey() {
+  return (
+    <p className="statuskey">
+      <span>
+        <StatusMark status="not_opened" size={15} /> not started
+      </span>
+      <span>
+        <StatusMark status="in_progress" size={15} /> started
+      </span>
+      <span>
+        <StatusMark status="complete" size={15} /> done
+      </span>
+      <span className="statuskey__note">Lessons tick themselves once you’ve watched 90%.</span>
+    </p>
   )
 }
 
@@ -56,11 +78,14 @@ export function ClassMark({ id, name }: { id: string; name: string }) {
   return <span className={`hl hl--${classTint(id)}`}>{name}</span>
 }
 
-/** A tear-off calendar page for a due date. The full date is given in text elsewhere. */
-export function DateTab({ iso }: { iso: string }) {
+/**
+ * A tear-off calendar page for a due date. The full date is given in text elsewhere. Its header
+ * is ink; it turns red (a problem) only when class is less than a day away.
+ */
+export function DateTab({ iso, urgent = false }: { iso: string; urgent?: boolean }) {
   const p = calendarParts(iso)
   return (
-    <span className="datetab" aria-hidden="true">
+    <span className={urgent ? 'datetab datetab--urgent' : 'datetab'} aria-hidden="true">
       <span className="datetab__top">{p.weekday}</span>
       <span className="datetab__day">{p.day}</span>
       <span className="datetab__month">{p.month}</span>
@@ -129,7 +154,7 @@ export function TodoRow({
   return (
     <li>
       <Link to={to} className={`todo__row todo__row--${status}`}>
-        <Checkbox status={status} />
+        <StatusMark status={status} />
         <span className="todo__title">{title}</span>
         <span className="todo__leader" aria-hidden="true" />
         <span className="todo__meta">

@@ -47,6 +47,8 @@ export interface OvNote {
   id: number
   body: string
   created_at: string
+  /** When the teacher marked it handled (answered, or covered in class); null while open. */
+  handledAt: string | null
   lessonId: string
   lessonTitle: string
   studentId: string
@@ -148,9 +150,9 @@ export async function loadOverview(opts: { classId?: string; studentId?: string;
   const notesQuery = (ids?: string[]) => {
     let nq = supabase
       .from('confusion_notes')
-      // Name the student key: a note can also point at profiles through handled_by.
+      // Two keys point at profiles (the student, and who handled it): name the student one.
       .select(
-        'id, body, created_at, lesson_id, student_id, lessons(title), profiles!confusion_notes_student_id_fkey(full_name, email)',
+        'id, body, created_at, handled_at, lesson_id, student_id, lessons(title), profiles!confusion_notes_student_id_fkey(full_name, email)',
       )
       .order('created_at', { ascending: false })
     if (opts.studentId) nq = nq.eq('student_id', opts.studentId)
@@ -179,6 +181,7 @@ export async function loadOverview(opts: { classId?: string; studentId?: string;
         id: n.id,
         body: n.body,
         created_at: n.created_at,
+        handledAt: n.handled_at,
         lessonId: n.lesson_id,
         lessonTitle: n.lessons?.title ?? 'Lesson',
         studentId: n.student_id,
@@ -191,15 +194,19 @@ export async function loadOverview(opts: { classId?: string; studentId?: string;
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-export interface Prep {
-  ready: OvStudent[]
-  started: OvStudent[]
-  notOpened: OvStudent[]
+export interface Prep<S extends { id: string; name: string } = OvStudent> {
+  ready: S[]
+  started: S[]
+  notOpened: S[]
 }
 
 /** Splits a class into who finished an assignment, who started, and who hasn't opened any of it. */
-export function prepFor(a: OvAssignment, students: OvStudent[], progress: Map<string, OvProgress>): Prep {
-  const prep: Prep = { ready: [], started: [], notOpened: [] }
+export function prepFor<S extends { id: string; name: string }>(
+  a: { lessons: { id: string }[] },
+  students: S[],
+  progress: Map<string, Pick<OvProgress, 'completed_at'>>,
+): Prep<S> {
+  const prep: Prep<S> = { ready: [], started: [], notOpened: [] }
   for (const s of students) {
     const st = a.lessons.map((l) => lessonStatus(progress.get(progressKey(s.id, l.id))))
     if (st.length > 0 && st.every((x) => x === 'complete')) prep.ready.push(s)
@@ -331,4 +338,36 @@ export async function loadStudentQuiz(studentId: string, lessonIds: string[]): P
       .range(from, to),
   )
   return quizByLesson(questions, attempts)
+}
+
+// ---------------------------------------------------------------------------
+// Handled notes
+// ---------------------------------------------------------------------------
+
+const DAY = 86_400_000
+
+/** "New" = still open and left in the last 24 hours. The same on every device. */
+export function isRecentNote(n: Pick<OvNote, 'created_at' | 'handledAt'>, now = Date.now()): boolean {
+  return !n.handledAt && now - new Date(n.created_at).getTime() < DAY
+}
+
+/** Marks notes handled (or open again) for everyone; returns how many changed. Teacher only. */
+export async function setNotesHandled(ids: number[], handled: boolean): Promise<number> {
+  if (ids.length === 0) return 0
+  const { data, error } = await supabase.rpc('set_notes_handled', { p_note_ids: ids, p_handled: handled })
+  if (error) throw error
+  notifyNotesChanged()
+  return data ?? 0
+}
+
+/** Lets the nav's open-notes count refresh as soon as a note is handled anywhere in the app. */
+export const NOTES_CHANGED = 'chalkline:notes-changed'
+export function notifyNotesChanged(): void {
+  window.dispatchEvent(new Event(NOTES_CHANGED))
+}
+
+/** Copy of `notes` with the given ids set handled (now) or open. For optimistic updates. */
+export function withHandled<N extends Pick<OvNote, 'id' | 'handledAt'>>(notes: N[], ids: number[], handled: boolean, at: string): N[] {
+  const set = new Set(ids)
+  return notes.map((n) => (set.has(n.id) ? { ...n, handledAt: handled ? (n.handledAt ?? at) : null } : n))
 }

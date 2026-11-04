@@ -4,10 +4,11 @@ import { Link } from 'react-router'
 import { ClassMark } from '../../components/Notebook'
 import { tilt } from '../../lib/fun'
 import { formatRelative, formatShort } from '../../lib/format'
-import { classesForNote, studentPath, type OvClass, type OvNote, type Prep } from '../../lib/teacherOverview'
+import { classesForNote, isRecentNote, studentPath, type OvClass, type OvNote, type Prep } from '../../lib/teacherOverview'
+import type { NoteStatus } from '../../lib/useNoteActions'
 
 /** One bar for a whole class: finished / started / not opened, with the numbers spelled out. */
-export function PrepBar({ prep }: { prep: Prep }) {
+export function PrepBar({ prep }: { prep: Prep<{ id: string; name: string }> }) {
   const total = prep.ready.length + prep.started.length + prep.notOpened.length
   const w = (n: number) => `${total ? (n / total) * 100 : 0}%`
   return (
@@ -33,7 +34,7 @@ export function NotOpenedList({
   level,
   max = 6,
 }: {
-  prep: Prep
+  prep: Prep<{ id: string; name: string }>
   classId: string
   level: 'none' | 'soon' | 'urgent'
   max?: number
@@ -55,25 +56,33 @@ export function NotOpenedList({
   )
 }
 
-/** A student's note, shown as the sticky note they wrote. */
+/** A student's note, shown as the sticky note they wrote, with "Mark handled" / "Reopen". */
 export function NoteCard({
   note,
-  classes,
-  isNew,
+  now,
+  classes = [],
   showLesson = true,
   showStudent = true,
+  onHandle,
 }: {
   note: OvNote
-  classes: OvClass[]
-  isNew: boolean
+  /** When the page loaded; decides the "New" tag. */
+  now: number
+  classes?: OvClass[]
   showLesson?: boolean
   showStudent?: boolean
+  /** Omit for a read-only card. */
+  onHandle?: (note: OvNote, handled: boolean) => void
 }) {
   const where = classesForNote(note, classes)
   const home = where[0]
+  const handled = Boolean(note.handledAt)
   return (
-    <li className="notecard" style={{ '--tilt': `${tilt(String(note.id), 1.6)}deg` } as CSSProperties}>
-      {isNew && <span className="notecard__new">New</span>}
+    <li
+      className={handled ? 'notecard notecard--handled' : 'notecard'}
+      style={{ '--tilt': `${tilt(String(note.id), 1.6)}deg` } as CSSProperties}
+    >
+      {isRecentNote(note, now) && <span className="notecard__new">New</span>}
       <p className="notecard__body">{note.body}</p>
       <p className="notecard__meta">
         {showStudent &&
@@ -91,7 +100,7 @@ export function NoteCard({
         )}
         <span className="notecard__time">
           <time dateTime={note.created_at} title={formatShort(note.created_at)}>
-            {formatRelative(note.created_at)}
+            {formatRelative(note.created_at, now)}
           </time>
           {where.length > 0 && (
             <>
@@ -103,6 +112,48 @@ export function NoteCard({
           )}
         </span>
       </p>
+      {handled ? (
+        <p className="notecard__handled">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="10" fill="currentColor" />
+            <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>
+            Handled <time dateTime={note.handledAt!}>{formatRelative(note.handledAt!, now)}</time>
+          </span>
+          {onHandle && (
+            <button type="button" className="linkish" onClick={() => onHandle(note, false)}>
+              Reopen<span className="visually-hidden"> {note.studentName}’s note</span>
+            </button>
+          )}
+        </p>
+      ) : (
+        onHandle && (
+          <button type="button" className="btn btn--ink btn--small notecard__act" onClick={() => onHandle(note, true)}>
+            Mark handled<span className="visually-hidden"> ({note.studentName}’s note)</span>
+          </button>
+        )
+      )}
     </li>
+  )
+}
+
+/** "Marked 2 notes handled. Undo", or an error, after a note action. */
+export function NoteActionStatus({ status, error }: { status: NoteStatus | null; error: string }) {
+  return (
+    <div className="notestatus" aria-live="polite">
+      {error ? (
+        <p className="error">{error}</p>
+      ) : status ? (
+        <p className="notestatus__msg">
+          {status.text}{' '}
+          {status.undo && (
+            <button type="button" className="linkish" onClick={status.undo}>
+              Undo
+            </button>
+          )}
+        </p>
+      ) : null}
+    </div>
   )
 }

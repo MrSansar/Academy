@@ -22,7 +22,7 @@
   --brand-hover: var(--board-deep);
   --brand-edge: #06180f; /* the little 3D lip under buttons */
   --link: #2346a8; /* blue ink, 8:1 on paper */
-  --pen-red: #b8322a; /* corrections, stamps: 5.7:1 on paper */
+  --pen-red: #b8322a; /* problems only: wrong, late, missed, delete. 5.7:1 on paper */
   --pen-green: #1c7040; /* ticks, praise: 5.6:1 on paper */
   --rule: rgba(64, 110, 190, 0.24); /* ruled lines */
   --margin: rgba(214, 72, 72, 0.5); /* the red margin line */
@@ -1291,7 +1291,7 @@ a.lessonrow:hover {
   font-family: var(--hand);
   font-size: 1.55rem;
   line-height: 1;
-  color: var(--pen-red);
+  color: var(--link); /* a friendly nudge, in blue ink */
   transform: rotate(-3deg);
 }
 .penarrow {
@@ -1329,7 +1329,7 @@ a.lessonrow:hover {
   font-family: var(--hand);
   font-size: 1.35rem;
   font-weight: 600;
-  color: var(--pen-red);
+  color: var(--muted); /* pencil in the margin, not a warning */
 }
 
 /* ---------- agenda: one entry per assignment ---------- */
@@ -1355,10 +1355,25 @@ a.lessonrow:hover {
   font-size: 0.88rem;
   font-weight: 700;
 }
+.agenda__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.agenda__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
 .agenda__title {
   font-size: clamp(1.3rem, 3.4vw, 1.6rem);
   margin: 0 0 0.2rem;
-  padding-right: 5.5rem; /* room for a stamp */
 }
 .agenda__due {
   font-size: 0.92rem;
@@ -1378,22 +1393,23 @@ a.lessonrow:hover {
   color: var(--muted);
 }
 .teacher-note {
-  position: relative;
-  margin: 0.5rem 0 0.6rem;
-  padding-left: 1.6rem;
+  margin: 0.6rem 0 0.7rem;
   max-width: 38em;
-  font-family: var(--hand);
-  font-size: 1.4rem;
-  line-height: 1.2;
-  color: var(--link);
 }
-.teacher-note::before {
-  content: '✎';
-  position: absolute;
-  left: 0;
-  top: 0.05em;
-  font-family: system-ui, sans-serif;
-  font-size: 1.05rem;
+.teacher-note__from {
+  margin: 0 0 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.teacher-note__text {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--link); /* the teacher's own words, in blue ink */
+  white-space: pre-line;
 }
 
 /* Tear-off calendar page */
@@ -1419,6 +1435,11 @@ a.lessonrow:hover {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--paper);
+  background: var(--ink);
+}
+/* Red only when class is less than a day away. */
+.datetab--urgent .datetab__top {
   color: #fff;
   background: var(--pen-red);
 }
@@ -1480,21 +1501,35 @@ a.todo__row:hover .todo__title {
   color: var(--mark-ink);
   font-weight: 700;
 }
-.cbox {
+.smark {
   flex: none;
-  width: 28px;
-  height: 26px;
   overflow: visible;
+}
+.smark__ring {
+  stroke: var(--ink);
+}
+.smark__half {
+  fill: var(--mark);
+}
+.smark__done {
+  fill: var(--pen-green);
+}
+.statuskey {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 1rem;
+  margin: 0.7rem 0 0.2rem;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+.statuskey > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.statuskey__note {
   color: var(--ink);
-}
-.cbox__slash {
-  color: var(--mark);
-}
-.cbox__tick {
-  color: var(--pen-green);
-}
-.todo__row--complete .cbox__box {
-  opacity: 0.6;
 }
 
 /* ---------- rubber stamp ---------- */
@@ -1505,7 +1540,7 @@ a.todo__row:hover .todo__title {
   font: 800 0.78rem/1 'Public Sans', system-ui, sans-serif;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--pen-red);
+  color: var(--pen-green); /* a celebration, so green */
   border: 2.5px solid currentColor;
   border-radius: 5px;
   outline: 1.5px solid currentColor;
@@ -1667,15 +1702,15 @@ a.todo__row:hover .todo__title {
 .steps {
   list-style: none;
   display: flex;
-  gap: 0.15rem;
+  gap: 0.3rem;
   margin: 0;
   padding: 0;
 }
 .steps__n {
   display: inline-grid;
   place-items: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   font-family: 'Fraunces', Georgia, serif;
   font-weight: 600;
@@ -1688,9 +1723,10 @@ a.steps__n:hover {
 }
 .steps__n--here {
   color: var(--ink);
-  /* circled in pen */
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M22 4.5C11 3 4 10 4.6 20.5 5.3 31 13 36 22 35.4 31.5 34.6 36 27.6 35.6 19 35.2 10.5 28 4.8 17 6.2' fill='none' stroke='%23b8322a' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E")
-    center / 100% 100% no-repeat;
+  font-weight: 800;
+  /* circled in pen: an uneven ink ring */
+  border: 2px solid var(--ink);
+  border-radius: 48% 52% 50% 46% / 53% 47% 52% 48%;
 }
 
 /* The video, taped into the notebook. */
@@ -1702,9 +1738,9 @@ a.steps__n:hover {
   content: '';
   position: absolute;
   z-index: 2;
-  top: -9px;
+  top: -19px; /* lower edge meets the frame: YouTube's title and buttons stay clear */
   width: 78px;
-  height: 22px;
+  height: 20px;
   background: var(--tape);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   pointer-events: none;
@@ -1712,32 +1748,59 @@ a.steps__n:hover {
   clip-path: polygon(3% 0, 97% 4%, 100% 30%, 96% 55%, 100% 82%, 96% 100%, 4% 96%, 0 70%, 4% 45%, 0 18%);
 }
 .player::before {
-  left: -22px;
-  transform: rotate(-32deg);
+  left: 18px;
+  transform: rotate(-3deg);
 }
 .player::after {
-  right: -22px;
-  transform: rotate(32deg);
+  right: 18px;
+  transform: rotate(3deg);
 }
 .stage {
   border-radius: 3px;
   box-shadow: var(--shadow-lift);
 }
 
-/* Watched meter: pencil hatching inside an inked outline. */
+/* Watched meter: solid amber while under way, green once done; the goal is a labelled ink mark. */
 .pbar {
-  height: 14px;
-  background: transparent;
+  position: relative;
+  height: auto;
+  margin: 0.5rem 0 1.35rem;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.pbar__track {
+  height: 12px;
   border: 1.5px solid var(--ink);
   border-radius: 99px;
+  overflow: hidden;
 }
 .pbar__fill {
-  background: repeating-linear-gradient(-45deg, var(--ink) 0 2px, transparent 2px 6px);
+  height: 100%;
+  background: var(--mark);
   border-radius: 0;
+  transition: width 0.4s ease;
 }
-.pbar__mark {
-  width: 2px;
-  background: var(--pen-red);
+.pbar__fill--done {
+  background: var(--pen-green);
+}
+.pbar__goal {
+  position: absolute;
+  top: -4px;
+  height: 20px;
+  border-left: 2px solid var(--ink);
+}
+.pbar__goal-label {
+  position: absolute;
+  top: 21px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
 .wrapup {
@@ -1774,7 +1837,7 @@ a.steps__n:hover {
   font-family: var(--hand);
   font-size: 1.4rem;
   line-height: 1;
-  color: var(--pen-red);
+  color: var(--muted);
 }
 .nextlink__title {
   font-family: 'Fraunces', Georgia, serif;
@@ -1817,7 +1880,7 @@ a.steps__n:hover {
   border-radius: 0.2em 0.7em 0.25em 0.8em / 0.6em 0.2em 0.7em 0.3em;
 }
 .cue__time {
-  color: var(--pen-red);
+  color: var(--muted);
 }
 
 /* ---------- answer sheet ---------- */
@@ -2171,9 +2234,24 @@ a.steps__n:hover {
     width: 3rem;
   }
   .agenda__class,
+  .agenda__top,
   .agenda__title,
   .agenda__due {
     padding-right: 3.8rem;
+  }
+  .today {
+    margin-bottom: 1.6rem;
+  }
+  .today__hello {
+    font-size: 2.1rem;
+    margin-bottom: 0.5rem;
+  }
+  .today__date {
+    margin-bottom: 0.2rem;
+  }
+  .today__lede {
+    font-size: 1.02rem;
+    margin-bottom: 0.9rem;
   }
   .agenda__stamp {
     top: auto;
@@ -2189,13 +2267,14 @@ a.steps__n:hover {
   .player::before,
   .player::after {
     width: 56px;
-    top: -7px;
+    height: 16px;
+    top: -15px;
   }
   .player::before {
-    left: -12px;
+    left: 10px;
   }
   .player::after {
-    right: -12px;
+    right: 10px;
   }
 }
 
@@ -2706,7 +2785,7 @@ a.steps__n:hover {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #fff;
-  background: #b8322a;
+  background: #1f2430; /* "new" is not a problem */
   border-radius: 4px;
   transform: rotate(4deg);
 }
@@ -3003,9 +3082,11 @@ a.steps__n:hover {
   padding-left: 0;
   border-left: 0;
 }
-.teach .stats--urgent,
-.teach .stats--soon {
+.teach .stats--urgent {
   color: var(--pen-red);
+}
+.teach .stats--soon {
+  color: var(--mark-ink);
 }
 @media (max-width: 559px) {
   .notes-board--stack > :nth-child(n + 4) {
@@ -3019,4 +3100,248 @@ a.steps__n:hover {
 :root[data-theme='dark'] .notecard .hl {
   color: #2a2414;
   background: var(--hl);
+}
+
+/* ======================================================================
+   Notes you can act on, the report, and the lesson editor's save bar
+   ====================================================================== */
+.segmented {
+  display: inline-flex;
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.segmented button {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.segmented button + button {
+  border-left: 1.5px solid var(--ink);
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 700;
+}
+.segmented__n {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+.notegroup__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 3px double var(--ink);
+}
+.notegroup__head h2,
+.notegroup__head h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.notegroup__count {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.notegroup__actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  font-size: 0.9rem;
+}
+.btn--done {
+  background: transparent;
+  color: var(--pen-green);
+  border: 1.5px solid var(--pen-green);
+  box-shadow: none;
+}
+.btn--done:hover:not(:disabled) {
+  background: var(--ok-bg);
+  box-shadow: none;
+}
+.btn--done svg {
+  width: 16px;
+  height: 16px;
+}
+.btn--danger,
+.btn--ghost.btn--danger {
+  color: var(--pen-red);
+  border-color: currentColor;
+}
+.notecard__act {
+  align-self: flex-start;
+}
+/* A handled note stays readable: paler paper, full-strength ink, and a line saying so. */
+.notecard--handled {
+  background: #f4edd2;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+.notecard__handled {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #1d5a33; /* 7:1 on the note */
+}
+.notecard__handled svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.notecard__handled .linkish {
+  color: #1f3f99;
+  font-weight: 600;
+  min-height: 36px;
+}
+.notestatus {
+  min-height: 1.5rem;
+  margin: 0.3rem 0 0.5rem;
+}
+.notestatus__msg {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--pen-green);
+}
+.notestatus .error {
+  margin: 0;
+}
+
+/* Report */
+.reportprep {
+  margin: 0 0 1.4rem;
+}
+.qlesson {
+  margin-top: 1.4rem;
+}
+.qlesson__title {
+  margin: 0;
+  padding-bottom: 0.3rem;
+  font-size: 1.15rem;
+  border-bottom: 1px solid var(--rule);
+}
+.qlesson .qstat:first-of-type {
+  border-top: 0;
+}
+.qstat__rate--few {
+  color: var(--muted);
+  font-weight: 500;
+}
+.teach .notegroup {
+  margin-top: 1.6rem;
+}
+
+/* Removing a student / deleting a lesson: out of the way, at the end */
+.dangerzone {
+  margin-top: 2.6rem;
+}
+.dangerzone .rulehead {
+  margin-bottom: 0.6rem;
+  font-size: 1.15rem;
+}
+
+/* Lesson editor */
+.editor__section {
+  margin-bottom: 2.2rem;
+}
+.editor__section > .rulehead {
+  margin-bottom: 1rem;
+  scroll-margin-top: 5rem;
+}
+.editor__section > .rulehead:focus {
+  outline: none;
+}
+.editor__index {
+  margin-bottom: 1.2rem;
+}
+.editor__index-h {
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.editor__index ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.editor__index button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 0.4rem;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.editor__index button:hover {
+  background: var(--code-bg);
+}
+.savebar {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0.5rem calc(-1 * var(--gutter)) 0;
+  padding: 0.75rem var(--gutter);
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -10px 24px -16px rgba(31, 36, 48, 0.45);
+}
+.savebar__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-weight: 700;
+}
+.savebar__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pen-green);
+}
+.savebar__status--dirty .savebar__dot {
+  background: var(--mark);
+}
+.savebar__error {
+  flex-basis: 100%;
+  order: 3;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--bad);
+}
+.savebar__actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* dark: the white tick on a light chalk-green disc needs dark ink instead */
+:root[data-theme='dark'] .smark--complete path,
+:root[data-theme='dark'] .statuskey .smark--complete path {
+  stroke: #173a2f;
+}
+:root[data-theme='dark'] .datetab--urgent .datetab__top {
+  color: #173a2f;
 }

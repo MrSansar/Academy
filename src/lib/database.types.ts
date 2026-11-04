@@ -116,6 +116,8 @@ export type Database = {
         Row: {
           body: string
           created_at: string
+          handled_at: string | null
+          handled_by: string | null
           id: number
           lesson_id: string
           student_id: string
@@ -123,6 +125,8 @@ export type Database = {
         Insert: {
           body: string
           created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
           id?: never
           lesson_id: string
           student_id?: string
@@ -130,11 +134,20 @@ export type Database = {
         Update: {
           body?: string
           created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
           id?: never
           lesson_id?: string
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "confusion_notes_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "confusion_notes_lesson_id_fkey"
             columns: ["lesson_id"]
@@ -497,6 +510,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_notes_handled: {
+        Args: { p_handled: boolean; p_note_ids: number[] }
+        Returns: number
       }
       submit_answer: {
         Args: { p_choice: number; p_question_id: string }
