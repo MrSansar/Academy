@@ -49,21 +49,20 @@ last 24 hours, remove / delete). Still no streaks, points, badges or leaderboard
 
 **Navigation.** Students have two sections, *Assignments* and *My progress*; joining another class,
 the theme and signing out live in the name menu at the top right. A lesson page says “Lesson 2 of 3”,
-has numbered tabs for the other lessons, and previous / next links at the bottom. Teachers have four
-sections, which stay highlighted on every page inside them:
+has numbered tabs for the other lessons, and previous / next links at the bottom.
+
+**Teachers** get a plain working layout (no notebook decoration; light and dark) with three
+sections:
 
 | Section | What's there |
 | --- | --- |
-| **Dashboard** | What's due this week across all classes: for each assignment, a ready / started / not opened bar and the names of students who haven't opened it (amber within 3 days of class, red within 24 hours). The open confusion notes, with *Mark handled*. Quick links to each class. |
-| **Classes** | Every class with its join code and how many are ready for the next assignment. A class page lists its assignments (with the same bar) and a student table: lessons done, *not done before class* (explained under the table), last active, notes. Each name opens that **student's page**: every assigned lesson with % watched, when it was finished (and whether late), first-try quiz score, their notes on it, and *Remove from class*. |
-| **Courses** | Courses and their lessons. The lesson editor keeps a save bar on screen (“Unsaved changes”, Discard, Preview, Save), has an *On this page* index, and warns before you leave with unsaved changes. |
+| **Overview** | Everything for one class on one screen. Class tabs along the top (each says how many are ready for its next assignment; archived classes in a menu; *+ New class*). The class header has the join code with *Copy*, *Refresh*, *Export CSV*, *Class settings* (rename, new join code, archive) and *New assignment*. A warning lists any lesson in the class's course that **isn't in an assignment** (students can't see those), with one-click *Add to the next assignment* or *New assignment with it*. Five figures: next class and how many are ready, lessons finished, students who need attention, first-try quiz score, open notes. Then the **progress grid**: one row per student, one column per assigned lesson, grouped by assignment, each cell ✓ / ✓ late / % watched / Missed / not opened (amber when class is within 3 days); per student: done, missed, quiz %, last active, open notes; a *Finished* count per lesson. Sort by any column, filter *All / Need attention / Never opened*, choose which assignments to show, search by name. Beside it: *Coming up* (each upcoming assignment's finished / started / not opened bar and who hasn't opened it) and *Open notes* with *Mark handled*. Clicking a student opens their **details panel** over the page: every lesson with % watched, finish time, quiz score, their notes, and *Remove from class*. The page refreshes itself when you come back to the tab. |
+| **Lessons** | Courses and their lessons; each lesson says whether students can see it (*In 2 assignments* or *Not assigned*). The lesson editor has a **Who can see this lesson** box: which assignments include it, and *Add to an assignment* / *New assignment with it*. It also keeps a save bar on screen and warns before you leave with unsaved changes. |
 | **Notes** | Every “What was confusing?” note in **Open / Handled / All** tabs, filterable by class and lesson, grouped by lesson. *Mark handled* once you've answered a note, or *Covered in class* for a whole lesson; both can be undone. Handled is saved on the note (`handled_at`, `handled_by`), so the open count next to *Notes* is the same on every device. **New** = open and less than a day old. Students don't see whether a note was handled. |
 
-Every teacher page has breadcrumbs (e.g. *Classes / Physics 101 / Ana Lopez*). The per-assignment
-report has the prep bar, the students × lessons table, first-try % correct per check question with
-the answer distribution (rounded to the nearest percent; under 3 answers it says “too few to tell”
-instead), the notes for its lessons with the same handled actions, and CSV export (per assignment, or
-the whole class).
+The per-assignment report (open an assignment's name) has the prep bar, the students × lessons
+table, first-try % correct per check question with the answer distribution (under 3 answers it says
+“too few to tell”), the notes for its lessons with the same handled actions, and CSV export.
 The editor creates courses, lessons, classes and assignments, reorders lessons, sets due dates, and
 toggles questions / the confusion box per lesson. Lessons over 10 minutes get a soft warning.
 
@@ -122,7 +121,7 @@ The project `chalkline` (Tokyo, free tier) already has the schema applied. To se
    ```sql
    update public.profiles set role = 'teacher' where email = 'you@example.com';
    ```
-3. Sign in on the site. You’ll land on the **Dashboard**, which walks you through the first steps.
+3. Sign in on the site. You’ll land on the **Overview**, which walks you through the first steps.
 
 Students can’t change their own role: the `role` column isn’t writable through the API.
 
@@ -130,7 +129,7 @@ Students can’t change their own role: the `role` column isn’t writable throu
 
 1. Upload the video to YouTube as **Unlisted**, and make sure **Allow embedding** is on (YouTube
    Studio → video → Show more → License and distribution). Add or auto-generate captions.
-2. On the site: **Courses → New course** (once), open the course, then **New lesson**.
+2. On the site: **Lessons → New course** (once), open the course, then **New lesson**.
 3. Paste the YouTube link. The preview loads and the length fills in automatically. Videos over
    10 minutes show a reminder that ~6-minute videos get watched more.
 4. Add a short summary and, optionally, a transcript. One cue per line, starting with a time:
@@ -142,14 +141,16 @@ Students can’t change their own role: the `role` column isn’t writable throu
 5. Optional: switch on **End-of-lesson check questions** (up to 3, multiple choice, mark the
    correct choice, one-line explanation) and/or the **“What was confusing?” box**.
 6. **Save lesson.** Use **Preview as student** to check it. Teacher viewing is never recorded.
+7. **Put it in an assignment.** A saved lesson is not shown to students until it's in an assignment
+   for their class. The editor's **Who can see this lesson** box says where it is and lets you add
+   it to an assignment or start a new one; the Overview also warns about unassigned lessons.
 
 Then put it in front of students:
 
-- **Classes → New class** (pick the course it takes lessons from) gives you a join code (e.g. `ABCD-2345`) to share. **New code**
-  replaces it; **Archive class** stops new joins.
-- On the class page, **New assignment**: title, when class starts (students should finish before
-  this), and the lessons in order. Students only see a lesson once it’s in an assignment for their
-  class.
+- **Overview → + New class** (pick the course it takes lessons from) gives you a join code (e.g.
+  `ABCD-2345`) to share. **Class settings → New join code** replaces it; **Archive class** stops new joins.
+- **New assignment**: title, when class starts (students should finish before this), and the lessons
+  in order. Students see it as soon as you save.
 
 ## Deploy (GitHub Pages)
 

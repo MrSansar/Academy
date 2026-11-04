@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { Crumbs, ErrorNote, Loading } from '../../components/ui'
-import { dayPhrase, formatShort, pct, pctRound } from '../../lib/format'
+import { dayPhrase, pctRound } from '../../lib/format'
 import { usePageTitle } from '../../lib/pageTitle'
 import { errorMessage } from '../../lib/supabase'
 import {
@@ -11,10 +11,10 @@ import {
   questionStats,
   type AssignmentReport,
 } from '../../lib/teacherData'
-import { prepFor, studentPath, urgency, type OvClass, type OvNote } from '../../lib/teacherOverview'
-import { choicesOf, lessonStatus, type LessonProgress } from '../../lib/types'
+import { cellDetail, cellKind, classPath, prepFor, studentPath, type OvNote } from '../../lib/teacherOverview'
+import { choicesOf } from '../../lib/types'
 import { useNoteActions } from '../../lib/useNoteActions'
-import { NoteActionStatus, NoteCard, NotOpenedList, PrepBar } from './parts'
+import { NoteActionStatus, NoteItem, PrepBar, StatusChip } from './parts'
 
 /** Below this many first tries, a percentage says more about one student than about the class. */
 const MIN_ANSWERS = 3
@@ -58,255 +58,254 @@ export function AssignmentDashboard() {
     }
   }, [assignmentId, reload])
 
-  if (!report) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading report" />}</div>
+  if (!report) return <div className="t-page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading report" />}</div>
 
   const { assignment, lessons, students, progress, questions, attempts } = report
-  const level = urgency(assignment.due_at, loadedAt)
   const now = new Date(loadedAt)
   const isPast = new Date(assignment.due_at).getTime() < loadedAt
   const prep = prepFor({ lessons }, students, progress)
-  // Just enough of the class for note cards to link names and show the class label.
-  const cls: OvClass = {
-    id: assignment.class_id,
-    name: report.className,
-    archived: false,
-    joinCode: '',
-    courseId: '',
-    courseTitle: '',
-    students: students.map((s) => ({ ...s, joinedAt: '' })),
-    assignments: [{ id: assignment.id, title: assignment.title, due_at: assignment.due_at, classId: assignment.class_id, lessons }],
-  }
 
   return (
-    <div className="page page--wide teach">
+    <div className="t-page">
       <Crumbs
         items={[
-          { label: 'Classes', to: '/teach/classes' },
-          { label: report.className, to: `/teach/classes/${assignment.class_id}` },
+          { label: 'Overview', to: '/teach' },
+          { label: report.className, to: classPath(assignment.class_id) },
           { label: assignment.title },
         ]}
       />
-      <header className="pagehead pagehead--row">
-        <div>
+      <header className="t-head">
+        <div className="t-head__main">
           <h1>{assignment.title}</h1>
-          <p className="muted">
+          <p className="t-head__meta">
             {isPast ? 'Was due' : 'Due'} <time dateTime={assignment.due_at}>{dayPhrase(assignment.due_at, now)}</time>
             {' · '}
             {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'} · {students.length}{' '}
             {students.length === 1 ? 'student' : 'students'}
           </p>
         </div>
-        <div className="row">
+        <div className="t-head__actions">
           <button className="btn btn--ghost btn--small" onClick={() => setReload((n) => n + 1)}>
             Refresh
           </button>
-          <Link className="btn btn--ghost btn--small" to={`/teach/assignments/${assignment.id}/edit`}>
-            Edit
-          </Link>
-          <button className="btn btn--small" onClick={() => exportAssignmentCsv(report)}>
+          <button className="btn btn--ghost btn--small" onClick={() => exportAssignmentCsv(report)}>
             Export CSV
           </button>
+          <Link className="btn btn--small" to={`/teach/assignments/${assignment.id}/edit`}>
+            Edit assignment
+          </Link>
         </div>
       </header>
 
-      {students.length > 0 && lessons.length > 0 && (
-        <div className="reportprep">
-          <PrepBar prep={prep} />
-          <NotOpenedList prep={prep} classId={assignment.class_id} level={level} max={12} />
-        </div>
-      )}
-
       {students.length === 0 ? (
-        <p className="nothing">No students in this class yet. Share the join code from the class page.</p>
+        <p className="t-callout">No students in this class yet. Share the join code from the overview.</p>
       ) : lessons.length === 0 ? (
-        <p className="nothing">This assignment has no lessons. Add some with Edit.</p>
+        <p className="t-callout t-callout--warn">This assignment has no lessons, so students see nothing. Add some with Edit assignment.</p>
       ) : (
-        <section className="section" aria-labelledby="grid-h">
-          <h2 id="grid-h" className="rulehead">
-            Who prepared
-          </h2>
-          <div className="tablewrap tablewrap--flat" tabIndex={0} role="region" aria-label="Progress table, scrolls sideways">
-            <table className="grid">
-              <thead>
-                <tr>
-                  <th scope="col">Student</th>
-                  {lessons.map((l, i) => (
-                    <th scope="col" key={l.id}>
-                      <span className="muted">{i + 1}.</span> {l.title}
+        <div className="t-stack">
+          <section className="t-card" aria-labelledby="grid-h">
+            <div className="t-card__head">
+              <h2 id="grid-h" className="t-card__title">
+                Who prepared
+              </h2>
+              <div style={{ minWidth: 'min(100%, 22rem)' }}>
+                <PrepBar prep={prep} compact />
+              </div>
+            </div>
+            <div className="t-tablewrap" tabIndex={0} role="region" aria-label="Progress table, scrolls sideways">
+              <table className="t-grid">
+                <thead>
+                  <tr>
+                    <th scope="col" className="t-grid__corner">
+                      Student
                     </th>
-                  ))}
-                  <th scope="col">Overall</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => {
-                  const done = lessons.filter((l) => lessonStatus(progress.get(progressKey(s.id, l.id))) === 'complete').length
-                  return (
-                    <tr key={s.id}>
-                      <th scope="row">
-                        <Link to={studentPath(assignment.class_id, s.id)}>{s.name}</Link>
-                        <span className="email">{s.email}</span>
+                    <th scope="col" className="t-grid__last">
+                      Done
+                    </th>
+                    {lessons.map((l, i) => (
+                      <th scope="col" key={l.id} className={i === 0 ? 't-grid__lesson t-gstart' : 't-grid__lesson'} title={l.title}>
+                        <Link to={`/teach/lessons/${l.id}`}>
+                          {i + 1}. {l.title}
+                        </Link>
                       </th>
-                      {lessons.map((l) => (
-                        <Cell key={l.id} p={progress.get(progressKey(s.id, l.id))} dueAt={assignment.due_at} level={level} />
-                      ))}
-                      <td className={done === lessons.length ? 'cell cell--done' : 'cell'}>
-                        {done}/{lessons.length} done
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="legend muted small">
-            “Not opened” turns <span className="key key--soon">amber</span> within 3 days of class and{' '}
-            <span className="key key--urgent">red</span> within 24 hours. Complete = 90% of the video’s seconds actually
-            played (skipping ahead doesn’t count). “Late” = finished after class started.
-          </p>
-        </section>
-      )}
-
-      {lessons.some((l) => l.check_enabled) && (
-        <section aria-labelledby="q-h" className="section">
-          <h2 id="q-h" className="rulehead">
-            Check questions <span className="rulehead__aside">first try only</span>
-          </h2>
-          <p className="muted small">Low numbers are ideas to go over in class. Retries don’t count.</p>
-          {lessons
-            .filter((l) => l.check_enabled)
-            .map((l) => {
-              const qs = questions.filter((q) => q.lesson_id === l.id)
-              return (
-                <div key={l.id} className="qlesson">
-                  <h3 className="qlesson__title">{l.title}</h3>
-                  {qs.length === 0 && <p className="muted">No questions written for this lesson yet.</p>}
-                  {qs.map((q, i) => {
-                    const choices = choicesOf(q)
-                    const st = questionStats(q, attempts, choices.length)
-                    const enough = st.answered >= MIN_ANSWERS
-                    const rate = st.answered ? (st.firstTryCorrect / st.answered) * 100 : 0
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((s) => {
+                    const done = lessons.filter((l) => progress.get(progressKey(s.id, l.id))?.completed_at).length
                     return (
-                      <div key={q.id} className="qstat">
-                        <p className="qstat__prompt">
-                          <strong>{i + 1}.</strong> {q.prompt}
-                        </p>
-                        <p className={enough ? (rate < 60 ? 'qstat__rate qstat__rate--low' : 'qstat__rate') : 'qstat__rate qstat__rate--few'}>
-                          {st.answered === 0
-                            ? 'No answers yet'
-                            : enough
-                              ? `${pctRound(rate)} right on the first try`
-                              : `${st.answered} ${st.answered === 1 ? 'answer' : 'answers'} so far, too few to tell`}
-                          <span className="muted"> · {st.answered} of {students.length} answered</span>
-                        </p>
-                        <ul className="dist">
-                          {choices.map((c, ci) => {
-                            const share = st.answered ? (st.firstChoices[ci] / st.answered) * 100 : 0
+                      <tr key={s.id}>
+                        <th scope="row" className="t-grid__name">
+                          <Link to={studentPath(assignment.class_id, s.id)} title={s.email}>
+                            {s.name}
+                          </Link>
+                        </th>
+                        <td className="t-num t-grid__last">
+                          {done}/{lessons.length}
+                        </td>
+                        {lessons.map((l, i) => {
+                          const p = progress.get(progressKey(s.id, l.id))
+                          return (
+                            <td key={l.id} className={i === 0 ? 't-cell t-gstart' : 't-cell'} title={cellDetail(p)}>
+                              <StatusChip kind={cellKind(p, assignment.due_at, loadedAt)} p={p} />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="t-legend">
+              <span>
+                <StatusChip kind="done" /> finished before class
+              </span>
+              <span>
+                <StatusChip kind="late" /> finished after class started
+              </span>
+              <span>
+                <StatusChip kind="missed" /> not finished by class
+              </span>
+              <span>
+                <StatusChip kind="soon" /> not opened, class within 3 days
+              </span>
+              <span className="t-legend__note">Complete = 90% of the video’s seconds actually played (skipping ahead doesn’t count).</span>
+            </p>
+          </section>
+
+          {lessons.some((l) => l.check_enabled) && (
+            <section aria-labelledby="q-h" className="t-card">
+              <div className="t-card__head">
+                <h2 id="q-h" className="t-card__title">
+                  Check questions
+                </h2>
+                <span className="t-muted t-small">First try only. Low numbers are ideas to go over in class.</span>
+              </div>
+              {lessons
+                .filter((l) => l.check_enabled)
+                .map((l) => {
+                  const qs = questions.filter((q) => q.lesson_id === l.id)
+                  return (
+                    <div key={l.id} className="t-group">
+                      <div className="t-group__head">
+                        <h3>{l.title}</h3>
+                      </div>
+                      {qs.length === 0 ? (
+                        <p className="t-empty t-empty--tight">No questions written for this lesson yet.</p>
+                      ) : (
+                        <ol className="t-qlist">
+                          {qs.map((q, i) => {
+                            const choices = choicesOf(q)
+                            const st = questionStats(q, attempts, choices.length)
+                            const enough = st.answered >= MIN_ANSWERS
+                            const rate = st.answered ? (st.firstTryCorrect / st.answered) * 100 : 0
                             return (
-                              <li key={ci} className={ci === q.correct_index ? 'dist--correct' : ''}>
-                                <span className="dist__label">
-                                  {ci === q.correct_index && <span className="visually-hidden">Correct answer: </span>}
-                                  {ci === q.correct_index ? '✓ ' : ''}
-                                  {c}
-                                </span>
-                                <span className="dist__bar" aria-hidden="true">
-                                  <span style={{ width: `${share}%` }} />
-                                </span>
-                                <span className="dist__n">{st.firstChoices[ci]}</span>
+                              <li key={q.id} className="t-q">
+                                <p className="t-q__prompt">
+                                  {i + 1}. {q.prompt}
+                                </p>
+                                <p className={enough && rate < 60 ? 't-q__rate t-q__rate--low' : 't-q__rate'}>
+                                  {st.answered === 0 ? (
+                                    'No answers yet'
+                                  ) : enough ? (
+                                    <>
+                                      <strong>{pctRound(rate)}</strong> right on the first try
+                                    </>
+                                  ) : (
+                                    `${st.answered} ${st.answered === 1 ? 'answer' : 'answers'} so far, too few to tell`
+                                  )}
+                                  {' · '}
+                                  {st.answered} of {students.length} answered
+                                </p>
+                                <ul className="t-dist">
+                                  {choices.map((c, ci) => {
+                                    const share = st.answered ? (st.firstChoices[ci] / st.answered) * 100 : 0
+                                    return (
+                                      <li key={ci} className={ci === q.correct_index ? 't-dist--correct' : ''}>
+                                        <span className="t-dist__label">
+                                          {ci === q.correct_index && <span className="visually-hidden">Correct answer: </span>}
+                                          {ci === q.correct_index ? '✓ ' : ''}
+                                          {c}
+                                        </span>
+                                        <span className="t-dist__bar" aria-hidden="true">
+                                          <span style={{ width: `${share}%` }} />
+                                        </span>
+                                        <span className="t-dist__n">{st.firstChoices[ci]}</span>
+                                      </li>
+                                    )
+                                  })}
+                                </ul>
                               </li>
                             )
                           })}
-                        </ul>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
-        </section>
-      )}
+                        </ol>
+                      )}
+                    </div>
+                  )
+                })}
+            </section>
+          )}
 
-      {lessons.some((l) => l.confusion_enabled) && (
-        <section aria-labelledby="c-h" className="section">
-          <h2 id="c-h" className="rulehead">
-            What confused them
-            <Link className="rulehead__end" to="/teach/notes">
-              All notes →
-            </Link>
-          </h2>
-          <NoteActionStatus status={actions.status} error={actions.error} />
-          {lessons
-            .filter((l) => l.confusion_enabled)
-            .map((l) => {
-              const list = notes.filter((n) => n.lessonId === l.id)
-              const open = list.filter((n) => !n.handledAt)
-              return (
-                <div key={l.id} className="notegroup">
-                  <div className="notegroup__head">
-                    <h3>{l.title}</h3>
-                    <span className="notegroup__count">
-                      {open.length} open{list.length - open.length ? ` · ${list.length - open.length} handled` : ''}
-                    </span>
-                    {open.length > 0 && (
-                      <span className="notegroup__actions">
-                        <button
-                          type="button"
-                          className="btn btn--done btn--small"
-                          onClick={() =>
-                            void actions.run(
-                              open.map((n) => n.id),
-                              true,
-                              `Marked ${open.length} ${open.length === 1 ? 'note' : 'notes'} on “${l.title}” handled.`,
-                            )
-                          }
-                        >
-                          Covered in class
-                          <span className="visually-hidden">: mark all {open.length} open notes on {l.title} handled</span>
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                  {list.length === 0 ? (
-                    <p className="muted">No notes yet.</p>
-                  ) : (
-                    <ul className="notes-board">
-                      {list.map((n) => (
-                        <NoteCard key={n.id} note={n} now={loadedAt} classes={[cls]} showLesson={false} onHandle={actions.toggle} />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )
-            })}
-        </section>
+          {lessons.some((l) => l.confusion_enabled) && (
+            <section aria-labelledby="c-h" className="t-card">
+              <div className="t-card__head">
+                <h2 id="c-h" className="t-card__title">
+                  What confused them
+                </h2>
+                <Link className="t-small" to={`/teach/notes?class=${assignment.class_id}`}>
+                  All notes
+                </Link>
+              </div>
+              <NoteActionStatus status={actions.status} error={actions.error} />
+              {lessons
+                .filter((l) => l.confusion_enabled)
+                .map((l) => {
+                  const list = notes.filter((n) => n.lessonId === l.id)
+                  const open = list.filter((n) => !n.handledAt)
+                  return (
+                    <div key={l.id} className="t-group">
+                      <div className="t-group__head">
+                        <h3>{l.title}</h3>
+                        <span className="t-muted t-small">
+                          {open.length} open{list.length - open.length ? ` · ${list.length - open.length} handled` : ''}
+                        </span>
+                        {open.length > 0 && (
+                          <span className="t-group__actions">
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--small"
+                              onClick={() =>
+                                void actions.run(
+                                  open.map((n) => n.id),
+                                  true,
+                                  `Marked ${open.length} ${open.length === 1 ? 'note' : 'notes'} on “${l.title}” handled.`,
+                                )
+                              }
+                            >
+                              Covered in class
+                              <span className="visually-hidden">: mark all {open.length} open notes on {l.title} handled</span>
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                      {list.length === 0 ? (
+                        <p className="t-empty t-empty--tight">No notes yet.</p>
+                      ) : (
+                        <ul className="t-notes">
+                          {list.map((n) => (
+                            <NoteItem key={n.id} note={n} now={loadedAt} classId={assignment.class_id} showLesson={false} onHandle={actions.toggle} />
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+            </section>
+          )}
+        </div>
       )}
     </div>
-  )
-}
-
-function Cell({ p, dueAt, level }: { p: LessonProgress | undefined; dueAt: string; level: 'none' | 'soon' | 'urgent' }) {
-  const status = lessonStatus(p)
-  if (status === 'not_opened') {
-    return (
-      <td className={`cell cell--none cell--${level}`}>
-        {level !== 'none' && <span aria-hidden="true">! </span>}Not opened
-      </td>
-    )
-  }
-  const detail = `First opened ${formatShort(p!.first_opened_at)} · last watched ${formatShort(p!.last_watched_at)}${
-    p!.completed_at ? ` · completed ${formatShort(p!.completed_at)}` : ''
-  }`
-  if (status === 'complete') {
-    const late = new Date(p!.completed_at!) > new Date(dueAt)
-    return (
-      <td className="cell cell--done" title={detail}>
-        ✓ Complete{late && <span className="late"> late</span>}
-      </td>
-    )
-  }
-  return (
-    <td className="cell cell--progress" title={detail}>
-      {pct(Number(p!.percent_watched))}
-    </td>
   )
 }

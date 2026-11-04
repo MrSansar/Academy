@@ -1,9 +1,9 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { LessonPlayer } from '../../components/LessonPlayer'
 import { Crumbs, ErrorNote, Field, Loading, TextArea, Toggle } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
-import { formatClock } from '../../lib/format'
+import { formatClock, formatDueCompact } from '../../lib/format'
 import { errorMessage, supabase } from '../../lib/supabase'
 import { parseTranscript } from '../../lib/transcript'
 import { choicesOf } from '../../lib/types'
@@ -258,7 +258,7 @@ export function LessonEditor() {
       setRemovedIds([])
       setSavedValues({ ...current, questions: next })
       setSaved('All changes saved.')
-      if (isNew) navigate(`/teach/lessons/${lessonId}`, { replace: true })
+      if (isNew) navigate(`/teach/lessons/${lessonId}`, { replace: true, state: { created: true } })
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -290,7 +290,7 @@ export function LessonEditor() {
     <div className="page teach">
       <Crumbs
         items={[
-          { label: 'Courses', to: '/teach/courses' },
+          { label: 'Lessons', to: '/teach/courses' },
           { label: courseTitle || 'Course', to: `/teach/courses/${courseId}` },
           { label: isNew ? 'New lesson' : title || 'Lesson' },
         ]}
@@ -420,6 +420,14 @@ export function LessonEditor() {
         </div>
 
         <aside className="editor__side">
+          {isNew ? (
+            <section className="t-visible">
+              <h2>Who can see this lesson</h2>
+              <p>Students only see lessons that are in an assignment. Save the lesson, then add it to one here.</p>
+            </section>
+          ) : (
+            <LessonVisibility lessonId={params.lessonId!} courseId={courseId} courseTitle={courseTitle} />
+          )}
           <nav className="editor__index" aria-label="Sections of this form">
             <p className="editor__index-h">On this page</p>
             <ul>
@@ -549,5 +557,154 @@ function QuestionEditor({
         Remove question {n}
       </button>
     </fieldset>
+  )
+}
+
+interface VisClass {
+  id: string
+  name: string
+  archived: boolean
+  assignments: { id: string; title: string; due_at: string; assignment_lessons: { lesson_id: string }[] }[]
+}
+
+/**
+ * Which assignments include this lesson (so which students can see it), and a quick way to add it
+ * to one: a lesson that isn't in any assignment is invisible to students.
+ */
+function LessonVisibility({ lessonId, courseId, courseTitle }: { lessonId: string; courseId: string; courseTitle: string }) {
+  const location = useLocation()
+  const created = Boolean((location.state as { created?: boolean } | null)?.created)
+  const [classes, setClasses] = useState<VisClass[] | null>(null)
+  const [pick, setPick] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [reload, setReload] = useState(0)
+  const pickId = useId()
+
+  useEffect(() => {
+    if (!courseId) return
+    let active = true
+    supabase
+      .from('classes')
+      .select('id, name, archived, assignments(id, title, due_at, assignment_lessons(lesson_id))')
+      .eq('course_id', courseId)
+      .order('name')
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) setError(errorMessage(error))
+        else setClasses(data)
+      })
+    return () => {
+      active = false
+    }
+  }, [courseId, reload])
+
+  if (!classes) return <section className="t-visible">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Checking assignments" />}</section>
+
+  const now = Date.now()
+  const includes = (a: VisClass['assignments'][number]) => a.assignment_lessons.some((x) => x.lesson_id === lessonId)
+  const assigned = classes.flatMap((c) => c.assignments.filter(includes).map((a) => ({ c, a })))
+  const open = classes.filter((c) => !c.archived)
+  const candidates = open
+    .flatMap((c) => c.assignments.filter((a) => !includes(a)).map((a) => ({ c, a })))
+    .sort((x, y) => x.a.due_at.localeCompare(y.a.due_at))
+  const ahead = candidates.filter((x) => new Date(x.a.due_at).getTime() >= now)
+  const past = candidates.filter((x) => new Date(x.a.due_at).getTime() < now).reverse()
+
+  async function add() {
+    const target = candidates.find((x) => x.a.id === pick)
+    if (!target) return
+    setBusy(true)
+    setError('')
+    const { error } = await supabase
+      .from('assignment_lessons')
+      .insert({ assignment_id: target.a.id, lesson_id: lessonId, position: target.a.assignment_lessons.length })
+    setBusy(false)
+    if (error) return setError(errorMessage(error))
+    setMessage(`Added to “${target.a.title}”. Students in ${target.c.name} can see it now.`)
+    setPick('')
+    setReload((n) => n + 1)
+  }
+
+  return (
+    <section className={assigned.length ? 't-visible' : 't-visible t-visible--warn'} aria-labelledby={`${pickId}-h`}>
+      <h2 id={`${pickId}-h`}>Who can see this lesson</h2>
+      {assigned.length > 0 ? (
+        <>
+          <p>Students see it in:</p>
+          <ul>
+            {assigned.map(({ c, a }) => (
+              <li key={a.id}>
+                <strong>{c.name}</strong> · <Link to={`/teach/assignments/${a.id}`}>{a.title}</Link>{' '}
+                <span className="t-muted">(due {formatDueCompact(a.due_at)})</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p>
+          <strong>{created ? 'Saved. No student can see it yet.' : 'No student can see this lesson yet.'}</strong> It isn’t in
+          any assignment. Add it to one below.
+        </p>
+      )}
+
+      {open.length === 0 ? (
+        <p className="t-small">
+          No class uses the “{courseTitle || 'this'}” course yet. <Link to="/teach">Create a class</Link> on the overview.
+        </p>
+      ) : (
+        <>
+          {candidates.length > 0 && (
+            // Not a <form>: this sits inside the lesson's own form.
+            <div className="t-inlineform">
+              <div className="field">
+                <label htmlFor={pickId}>Add to an assignment</label>
+                <select id={pickId} value={pick} onChange={(e) => setPick(e.target.value)}>
+                  <option value="">Choose…</option>
+                  {ahead.length > 0 && (
+                    <optgroup label="Coming up">
+                      {ahead.map(({ c, a }) => (
+                        <option key={a.id} value={a.id}>
+                          {c.name}: {a.title} ({formatDueCompact(a.due_at)})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {past.length > 0 && (
+                    <optgroup label="Already due">
+                      {past.map(({ c, a }) => (
+                        <option key={a.id} value={a.id}>
+                          {c.name}: {a.title} ({formatDueCompact(a.due_at)})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              <button type="button" className="btn btn--small" disabled={!pick || busy} onClick={() => void add()}>
+                {busy ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+          )}
+          <p className="t-small">
+            Or a new assignment with it in{' '}
+            {open.map((c, i) => (
+              <span key={c.id}>
+                <Link to={`/teach/classes/${c.id}/assignments/new?lessons=${lessonId}`}>{c.name}</Link>
+                {i < open.length - 1 ? ', ' : ''}
+              </span>
+            ))}
+            .
+          </p>
+        </>
+      )}
+      {message && (
+        <p className="t-small" role="status">
+          {message}
+        </p>
+      )}
+      <ErrorNote>{error}</ErrorNote>
+    </section>
   )
 }

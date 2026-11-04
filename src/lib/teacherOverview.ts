@@ -2,6 +2,7 @@
  * Everything the teacher's dashboard, class, notes and student pages need, in one shape.
  * Loading is in `loadOverview`; the rest are pure helpers so they can be unit-tested.
  */
+import { formatShort } from './format'
 import { supabase } from './supabase'
 import { lessonStatus, type LessonProgress } from './types'
 
@@ -33,6 +34,8 @@ export interface OvClass {
   joinCode: string
   courseId: string
   courseTitle: string
+  /** Every lesson in the class's course, in course order (assigned or not). */
+  courseLessons: OvLesson[]
   students: OvStudent[]
   /** Soonest due first. */
   assignments: OvAssignment[]
@@ -65,8 +68,12 @@ export interface Overview {
 
 export const progressKey = (studentId: string, lessonId: string) => `${studentId}:${lessonId}`
 
-/** Route of a student's page within one class. */
-export const studentPath = (classId: string, studentId: string) => `/teach/classes/${classId}/students/${studentId}`
+/** The overview with one class open. */
+export const classPath = (classId: string) => `/teach?class=${encodeURIComponent(classId)}`
+
+/** The overview with one class open and a student's details showing. */
+export const studentPath = (classId: string, studentId: string) =>
+  `${classPath(classId)}&student=${encodeURIComponent(studentId)}`
 
 const PAGE = 1000 // PostgREST returns at most this many rows per request on Supabase by default
 const ID_CHUNK = 100 // keeps `in.(…)` filters well under URL length limits
@@ -92,7 +99,7 @@ export async function loadOverview(opts: { classId?: string; studentId?: string;
   let q = supabase
     .from('classes')
     .select(
-      'id, name, archived, join_code, course_id, courses(title), enrollments(student_id, joined_at, profiles(full_name, email)), assignments(id, title, due_at, assignment_lessons(position, lessons(id, title, duration_seconds)))',
+      'id, name, archived, join_code, course_id, courses(title, lessons(id, title, duration_seconds, position, created_at)), enrollments(student_id, joined_at, profiles(full_name, email)), assignments(id, title, due_at, assignment_lessons(position, lessons(id, title, duration_seconds)))',
     )
     .order('name')
   if (opts.classId) q = q.eq('id', opts.classId)
@@ -106,6 +113,9 @@ export async function loadOverview(opts: { classId?: string; studentId?: string;
     joinCode: c.join_code,
     courseId: c.course_id,
     courseTitle: c.courses?.title ?? '',
+    courseLessons: [...(c.courses?.lessons ?? [])]
+      .sort((x, y) => x.position - y.position || x.created_at.localeCompare(y.created_at))
+      .map(({ id, title, duration_seconds }) => ({ id, title, duration_seconds })),
     students: c.enrollments
       .filter((e) => !opts.studentId || e.student_id === opts.studentId)
       .map((e) => ({
@@ -371,3 +381,153 @@ export function withHandled<N extends Pick<OvNote, 'id' | 'handledAt'>>(notes: N
   const set = new Set(ids)
   return notes.map((n) => (set.has(n.id) ? { ...n, handledAt: handled ? (n.handledAt ?? at) : null } : n))
 }
+
+// ---------------------------------------------------------------------------
+// The overview grid: one row per student, one column per assigned lesson
+// ---------------------------------------------------------------------------
+
+/** Lessons in the class's course that no assignment of this class includes: students can't see them. */
+export function unassignedLessons(cls: Pick<OvClass, 'courseLessons' | 'assignments'>): OvLesson[] {
+  const used = new Set(cls.assignments.flatMap((a) => a.lessons.map((l) => l.id)))
+  return cls.courseLessons.filter((l) => !used.has(l.id))
+}
+
+/**
+ * One grid cell.
+ *   done     finished before class        late     finished, but after class started
+ *   missed   class started, not finished  progress started, class still ahead
+ *   soon     not opened, class within 3 days   todo  not opened, class further off
+ */
+export type CellKind = 'done' | 'late' | 'missed' | 'progress' | 'soon' | 'todo'
+
+export function cellKind(p: Pick<OvProgress, 'completed_at'> | undefined, dueAt: string, now = Date.now()): CellKind {
+  const due = new Date(dueAt).getTime()
+  if (p?.completed_at) return new Date(p.completed_at).getTime() > due ? 'late' : 'done'
+  if (due < now) return 'missed'
+  if (p) return 'progress'
+  return due - now <= 72 * HOUR ? 'soon' : 'todo'
+}
+
+/** Questions on each lesson, and each student's first-try results on them. */
+export type ClassQuiz = Map<string, Map<string, QuizResult>>
+
+export function classQuizByStudent(
+  questions: { id: string; lesson_id: string }[],
+  attempts: { question_id: string; student_id: string; is_correct: boolean; created_at: string }[],
+  studentIds: string[],
+): ClassQuiz {
+  const mine = new Map<string, typeof attempts>()
+  for (const t of attempts) mine.set(t.student_id, [...(mine.get(t.student_id) ?? []), t])
+  return new Map(studentIds.map((id) => [id, quizByLesson(questions, mine.get(id) ?? [])]))
+}
+
+/** Every check question on the given lessons and every student's attempts at them. */
+export async function loadClassQuiz(lessonIds: string[], studentIds: string[]): Promise<ClassQuiz> {
+  if (lessonIds.length === 0 || studentIds.length === 0) return new Map()
+  const questions = (
+    await Promise.all(
+      chunks(lessonIds, ID_CHUNK).map((ids) =>
+        supabase
+          .from('questions')
+          .select('id, lesson_id')
+          .in('lesson_id', ids)
+          .then(({ data, error }) => {
+            if (error) throw error
+            return data
+          }),
+      ),
+    )
+  ).flat()
+  if (questions.length === 0) return classQuizByStudent([], [], studentIds)
+  const attempts = (
+    await Promise.all(
+      chunks(
+        questions.map((q) => q.id),
+        ID_CHUNK,
+      ).map((ids) =>
+        fetchAll<{ question_id: string; student_id: string; is_correct: boolean; created_at: string }>((from, to) =>
+          supabase
+            .from('question_attempts')
+            .select('question_id, student_id, is_correct, created_at')
+            .in('question_id', ids)
+            .order('created_at')
+            .order('id')
+            .range(from, to),
+        ),
+      ),
+    )
+  ).flat()
+  return classQuizByStudent(questions, attempts, studentIds)
+}
+
+export interface RowStats {
+  /** Unique lessons in the assignments shown. */
+  assigned: number
+  done: number
+  /** Finished, but after class started. Counted in `done` too. */
+  late: number
+  /** Class started and the lesson still isn't finished. */
+  missed: number
+  /** Not finished, and class is within 3 days. */
+  dueSoon: number
+  lastActive: string | null
+  quiz: { questions: number; answered: number; right: number }
+  openNotes: number
+}
+
+/** A student's figures over the given assignments (a lesson assigned twice counts once, at its earliest due time). */
+export function rowStats(
+  studentId: string,
+  assignments: Pick<OvAssignment, 'due_at' | 'lessons'>[],
+  progress: Map<string, OvProgress>,
+  quiz: Map<string, QuizResult> | undefined,
+  notes: Pick<OvNote, 'studentId' | 'lessonId' | 'handledAt'>[],
+  now = Date.now(),
+): RowStats {
+  const due = new Map<string, string>()
+  for (const a of [...assignments].sort((x, y) => x.due_at.localeCompare(y.due_at)))
+    for (const l of a.lessons) if (!due.has(l.id)) due.set(l.id, a.due_at)
+  const r: RowStats = {
+    assigned: due.size,
+    done: 0,
+    late: 0,
+    missed: 0,
+    dueSoon: 0,
+    lastActive: null,
+    quiz: { questions: 0, answered: 0, right: 0 },
+    openNotes: 0,
+  }
+  for (const [lessonId, dueAt] of due) {
+    const p = progress.get(progressKey(studentId, lessonId))
+    const kind = cellKind(p, dueAt, now)
+    if (kind === 'done' || kind === 'late') r.done++
+    if (kind === 'late') r.late++
+    if (kind === 'missed') r.missed++
+    if ((kind === 'soon' || kind === 'progress') && new Date(dueAt).getTime() - now <= 72 * HOUR) r.dueSoon++
+    for (const t of [p?.last_watched_at, p?.first_opened_at]) if (t && (!r.lastActive || t > r.lastActive)) r.lastActive = t
+    const q = quiz?.get(lessonId)
+    if (q) {
+      r.quiz.questions += q.questions
+      r.quiz.answered += q.answered
+      r.quiz.right += q.firstTryRight
+    }
+  }
+  r.openNotes = notes.filter((n) => n.studentId === studentId && !n.handledAt && due.has(n.lessonId)).length
+  return r
+}
+
+/** Behind (missed something) or at risk (something unfinished with class within 3 days). */
+export const needsAttention = (r: RowStats) => r.missed > 0 || r.dueSoon > 0
+
+/** Hover text for a cell: when it was opened, last watched and finished. */
+export function cellDetail(p: OvProgress | undefined): string | undefined {
+  if (!p) return undefined
+  return [
+    `Opened ${formatShort(p.first_opened_at)}`,
+    p.last_watched_at && `last watched ${formatShort(p.last_watched_at)}`,
+    p.completed_at && `completed ${formatShort(p.completed_at)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+

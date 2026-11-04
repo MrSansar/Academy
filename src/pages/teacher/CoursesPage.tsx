@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ClassMark } from '../../components/Notebook'
-import { Crumbs, ErrorNote, Field, Loading, TextArea } from '../../components/ui'
+import { ErrorNote, Field, Loading, TextArea } from '../../components/ui'
 import { usePageTitle } from '../../lib/pageTitle'
 import { errorMessage, supabase } from '../../lib/supabase'
+import { classPath } from '../../lib/teacherOverview'
 
 interface CourseRow {
   id: string
@@ -45,73 +45,90 @@ export function CoursesPage() {
     navigate(`/teach/courses/${data.id}`)
   }
 
-  if (!courses) return <div className="page">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading courses" />}</div>
+  if (!courses) return <div className="t-page t-page--narrow">{error ? <ErrorNote>{error}</ErrorNote> : <Loading label="Loading courses" />}</div>
 
   return (
-    <div className="page teach">
-      <Crumbs items={[{ label: 'Dashboard', to: '/teach' }, { label: 'Courses' }]} />
-      <header className="pagehead">
-        <h1>Courses</h1>
-        <p className="muted">Each course holds a set of lessons (your videos). A class takes its lessons from one course.</p>
+    <div className="t-page t-page--narrow">
+      <header className="t-head">
+        <div className="t-head__main">
+          <h1>Lessons</h1>
+          <p className="t-head__meta">
+            Lessons (your videos) live in courses. A class takes its lessons from one course; students see a lesson once
+            it’s in an assignment.
+          </p>
+        </div>
+        {!adding && (
+          <div className="t-head__actions">
+            <button className="btn btn--small" onClick={() => setAdding(true)}>
+              New course
+            </button>
+          </div>
+        )}
       </header>
       <ErrorNote>{error}</ErrorNote>
 
-      {adding ? (
-        <form className="card narrow" onSubmit={addCourse}>
-          <h2>New course</h2>
-          <Field label="Course title" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+      {adding && (
+        <form className="t-card t-card--pad" onSubmit={addCourse}>
+          <h2 className="t-card__title" style={{ marginBottom: '0.6rem' }}>
+            New course
+          </h2>
+          <Field label="Course title" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
           <TextArea label="Description (optional)" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           <div className="row">
-            <button className="btn">Create course</button>
-            <button type="button" className="btn btn--ghost" onClick={() => setAdding(false)}>
+            <button className="btn btn--small">Create course</button>
+            <button type="button" className="btn btn--ghost btn--small" onClick={() => setAdding(false)}>
               Cancel
             </button>
           </div>
         </form>
-      ) : (
-        <p className="pagehead__actions">
-          <button className="btn" onClick={() => setAdding(true)}>
-            New course
-          </button>
-        </p>
       )}
 
-      {courses.length === 0 && !adding && <p className="nothing">No courses yet. Make one, then add lessons with YouTube links.</p>}
-
-      <ul className="rowlist">
-        {courses.map((c) => {
-          const n = c.lessons[0]?.count ?? 0
-          const used = c.classes.filter((k) => !k.archived)
-          return (
-            <li key={c.id}>
-              <Link to={`/teach/courses/${c.id}`} className="rowlist__row">
-                <span className="rowlist__main">
-                  <span className="rowlist__title">{c.title}</span>
-                  <span className="rowlist__sub">
-                    {n} {n === 1 ? 'lesson' : 'lessons'}
-                    {c.description && ` · ${c.description}`}
-                  </span>
-                </span>
-                <span className="rowlist__side">
-                  {used.length === 0 ? (
-                    <span className="muted">Not used by a class yet</span>
-                  ) : (
-                    <>
-                      Used by{' '}
-                      {used.map((k) => (
-                        <ClassMark key={k.id} id={k.id} name={k.name} />
-                      ))}
-                    </>
-                  )}
-                </span>
-                <span className="rowlist__go" aria-hidden="true">
-                  →
-                </span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      {courses.length === 0 && !adding ? (
+        <p className="t-callout">No courses yet. Make one, then add lessons with YouTube links.</p>
+      ) : (
+        courses.length > 0 && (
+          <div className="t-card">
+            <table className="t-table">
+              <thead>
+                <tr>
+                  <th scope="col">Course</th>
+                  <th scope="col">Lessons</th>
+                  <th scope="col">Used by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {courses.map((c) => {
+                  const n = c.lessons[0]?.count ?? 0
+                  const used = c.classes.filter((k) => !k.archived)
+                  return (
+                    <tr key={c.id}>
+                      <td className="t-strong">
+                        <Link to={`/teach/courses/${c.id}`}>{c.title}</Link>
+                        {c.description && <div className="t-muted t-small">{c.description}</div>}
+                      </td>
+                      <td className="t-num" style={{ textAlign: 'left' }}>
+                        {n}
+                      </td>
+                      <td>
+                        {used.length === 0 ? (
+                          <span className="t-muted">No class yet</span>
+                        ) : (
+                          used.map((k, i) => (
+                            <span key={k.id}>
+                              <Link to={classPath(k.id)}>{k.name}</Link>
+                              {i < used.length - 1 ? ', ' : ''}
+                            </span>
+                          ))
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
     </div>
   )
 }

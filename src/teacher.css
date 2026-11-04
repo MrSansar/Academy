@@ -1,0 +1,1462 @@
+/*
+ * Teacher workspace: a plain, dense working style. Applies only while <html data-area="teach">
+ * (set by Layout on /teach pages), so the student notebook and lesson previews are untouched.
+ */
+:root[data-area='teach'] {
+  --t-bg: #f4f5f7;
+  --t-surface: #ffffff;
+  --t-surface-2: #f8f9fb;
+  --t-hover: #f1f4f8;
+  --t-border: #e1e4ea;
+  --t-border-strong: #c9ced8;
+  --t-text: #18202b;
+  --t-muted: #5b6474; /* 5.9:1 on white */
+  --t-accent: #155e4b; /* Chalkline green, as a working colour */
+  --t-accent-hover: #0f4a3b;
+  --t-accent-soft: #e7f2ee;
+  --t-link: #1f4fb8;
+  --t-focus: #2f6fed;
+  --t-selected: #eef4ff;
+
+  --t-done: #116936;
+  --t-done-bg: #e3f4e9;
+  --t-late: #7a4b00;
+  --t-late-bg: #fbefd3;
+  --t-missed: #b42318;
+  --t-missed-bg: #fde8e6;
+  --t-progress: #1f4fb8;
+  --t-progress-bg: #e7eefc;
+  --t-soon: #7a4b00;
+  --t-soon-bg: #fff5dc;
+
+  --t-radius: 8px;
+  --t-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+
+  /* The shared tokens, so forms and the lesson editor follow along. */
+  --paper: var(--t-bg);
+  --card: var(--t-surface);
+  --ink: var(--t-text);
+  --muted: var(--t-muted);
+  --line: var(--t-border);
+  --input-line: var(--t-border-strong);
+  --brand: var(--t-accent);
+  --brand-ink: #ffffff;
+  --brand-hover: var(--t-accent-hover);
+  --brand-edge: transparent;
+  --link: var(--t-link);
+  --focus: var(--t-focus);
+  --mark-ink: var(--t-muted);
+  --ok: var(--t-done);
+  --ok-bg: var(--t-done-bg);
+  --bad: var(--t-missed);
+  --bad-bg: var(--t-missed-bg);
+  --warn-bg: var(--t-late-bg);
+  --pen-red: var(--t-missed);
+  --pen-green: var(--t-done);
+  --surface-2: var(--t-surface-2);
+  --selected: var(--t-selected);
+  --track: #e6e9ef;
+  --shadow: var(--t-shadow);
+  --shadow-lift: 0 8px 24px rgba(16, 24, 40, 0.12);
+  --radius: 6px;
+  --shell: min(1480px, 100% - 2 * var(--gutter));
+}
+
+:root[data-area='teach'][data-theme='dark'] {
+  --t-bg: #0f1318;
+  --t-surface: #161b22;
+  --t-surface-2: #1b212a;
+  --t-hover: #1f2631;
+  --t-border: #2b333f;
+  --t-border-strong: #3a4452;
+  --t-text: #e6e9ee;
+  --t-muted: #a1aab8;
+  --t-accent: #4fbf93;
+  --t-accent-hover: #6fd2aa;
+  --t-accent-soft: rgba(79, 191, 147, 0.14);
+  --t-link: #8db4ff;
+  --t-focus: #8db4ff;
+  --t-selected: rgba(141, 180, 255, 0.12);
+
+  --t-done: #7bdca0;
+  --t-done-bg: rgba(123, 220, 160, 0.14);
+  --t-late: #f2c46d;
+  --t-late-bg: rgba(242, 196, 109, 0.15);
+  --t-missed: #ff9a8f;
+  --t-missed-bg: rgba(255, 120, 105, 0.15);
+  --t-progress: #8db4ff;
+  --t-progress-bg: rgba(141, 180, 255, 0.15);
+  --t-soon: #f2c46d;
+  --t-soon-bg: rgba(242, 196, 109, 0.1);
+
+  --brand-ink: #0f1318;
+  --track: #2b333f;
+  --t-shadow: none;
+  --shadow-lift: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- base ---------- */
+:root[data-area='teach'] body,
+:root[data-area='teach'][data-theme] body {
+  background: var(--t-bg);
+  background-image: none;
+  color: var(--t-text);
+  font-size: 15px;
+}
+:root[data-area='teach'] h1,
+:root[data-area='teach'] h2,
+:root[data-area='teach'] h3 {
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+  font-variation-settings: normal;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+:root[data-area='teach'] h1 {
+  font-size: 1.45rem;
+}
+:root[data-area='teach'] h2 {
+  font-size: 1.05rem;
+}
+:root[data-area='teach'] h3 {
+  font-size: 0.95rem;
+}
+:root[data-area='teach'] .muted {
+  color: var(--t-muted);
+}
+:root[data-area='teach'] code {
+  font-size: 0.88em;
+}
+
+/* ---------- top bar ---------- */
+:root[data-area='teach'] .bar {
+  background: var(--t-surface);
+  color: var(--t-text);
+  border-bottom: 1px solid var(--t-border);
+}
+:root[data-area='teach'] .bar__in {
+  padding: 0.35rem 0;
+}
+:root[data-area='teach'] .mark {
+  font-family: 'Public Sans', system-ui, sans-serif;
+  font-variation-settings: normal;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  color: var(--t-text);
+}
+:root[data-area='teach'] .mark span {
+  color: var(--t-accent);
+}
+:root[data-area='teach'] .nav a {
+  color: var(--t-muted);
+  font-weight: 500;
+  font-size: 0.92rem;
+  border-radius: 6px;
+}
+:root[data-area='teach'] .nav a:hover {
+  color: var(--t-text);
+  background: var(--t-hover);
+}
+:root[data-area='teach'] .nav a[aria-current='page'],
+:root[data-area='teach'] .nav a[aria-current='page']:hover {
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+}
+:root[data-area='teach'] .nav__badge {
+  background: var(--t-accent);
+  color: var(--brand-ink);
+  font-weight: 700;
+}
+:root[data-area='teach'] .account__btn {
+  color: var(--t-text);
+  border-color: var(--t-border-strong);
+}
+:root[data-area='teach'] .account__btn .role {
+  border-color: var(--t-border-strong);
+  color: var(--t-muted);
+}
+:root[data-area='teach'] .bar :focus-visible {
+  outline-color: var(--t-focus);
+}
+
+/* ---------- buttons & fields ---------- */
+:root[data-area='teach'] .btn {
+  min-height: 36px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  box-shadow: none;
+  transform: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+:root[data-area='teach'] .btn:hover:not(:disabled),
+:root[data-area='teach'] .btn:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+:root[data-area='teach'] .btn--ghost {
+  background: var(--t-surface);
+  color: var(--t-text);
+  border-color: var(--t-border-strong);
+  box-shadow: none;
+}
+:root[data-area='teach'] .btn--ghost:hover:not(:disabled) {
+  background: var(--t-hover);
+  border-color: var(--t-border-strong);
+  box-shadow: none;
+}
+:root[data-area='teach'] .btn--small {
+  min-height: 32px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.85rem;
+}
+:root[data-area='teach'] .btn--done {
+  background: var(--t-accent);
+  border-color: var(--t-accent);
+  color: var(--brand-ink);
+}
+.t-btn-danger,
+:root[data-area='teach'] .btn--ghost.btn--danger {
+  color: var(--t-missed);
+  border-color: color-mix(in srgb, var(--t-missed) 45%, transparent);
+}
+:root[data-area='teach'] input[type='text'],
+:root[data-area='teach'] input[type='email'],
+:root[data-area='teach'] input[type='search'],
+:root[data-area='teach'] input[type='password'],
+:root[data-area='teach'] input[type='datetime-local'],
+:root[data-area='teach'] input:not([type]),
+:root[data-area='teach'] select,
+:root[data-area='teach'] textarea {
+  min-height: 36px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: var(--t-surface);
+  border: 1px solid var(--t-border-strong);
+  font-size: 0.92rem;
+}
+:root[data-area='teach'] label,
+:root[data-area='teach'] .field > label {
+  font-size: 0.84rem;
+  color: var(--t-text);
+}
+:root[data-area='teach'] .field {
+  margin-bottom: 0.8rem;
+}
+:root[data-area='teach'] .iconbtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border-color: var(--t-border-strong);
+  background: var(--t-surface);
+}
+:root[data-area='teach'] .error {
+  border: 1px solid color-mix(in srgb, var(--t-missed) 30%, transparent);
+}
+:root[data-area='teach'] .crumbs {
+  font-size: 0.85rem;
+  margin-bottom: 0.6rem;
+}
+:root[data-area='teach'] .crumbs a {
+  color: var(--t-muted);
+}
+:root[data-area='teach'] .loading {
+  padding: 1.2rem 0;
+}
+
+/* Bits of the notebook look that the shared components still carry. */
+:root[data-area='teach'] .player::before,
+:root[data-area='teach'] .player::after {
+  display: none;
+}
+:root[data-area='teach'] .stage {
+  border-radius: 6px;
+  box-shadow: none;
+}
+:root[data-area='teach'] .nothing {
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+:root[data-area='teach'] .rulehead {
+  font-size: 1rem;
+  border-bottom: 1px solid var(--t-border);
+  padding-bottom: 0.5rem;
+}
+:root[data-area='teach'] .rulehead__aside {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+:root[data-area='teach'] .hl {
+  background: none;
+  transform: none;
+  padding: 0;
+  font-weight: 600;
+}
+:root[data-area='teach'] .eyebrow {
+  color: var(--t-muted);
+  letter-spacing: 0.04em;
+}
+:root[data-area='teach'] .tag {
+  border-radius: 4px;
+}
+
+/* ---------- page shell ---------- */
+.t-page {
+  width: var(--shell);
+  margin-inline: auto;
+  padding: 1rem 0 3rem;
+}
+.t-page--narrow {
+  width: min(880px, 100% - 2 * var(--gutter));
+}
+.t-muted {
+  color: var(--t-muted);
+}
+.t-small {
+  font-size: 0.84rem;
+}
+.t-bad {
+  color: var(--t-missed);
+  font-weight: 700;
+}
+.t-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.t-nowrap {
+  white-space: nowrap;
+}
+.t-linkbtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--t-link);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.t-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--t-border-strong);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--t-muted);
+  vertical-align: middle;
+}
+.t-tag--accent {
+  margin: 0;
+  border-color: transparent;
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+}
+.t-tag--warn {
+  border-color: transparent;
+  background: var(--t-late-bg);
+  color: var(--t-late);
+}
+.t-count {
+  display: inline-block;
+  min-width: 1.4rem;
+  margin-left: 0.3rem;
+  padding: 0 0.35rem;
+  border-radius: 99px;
+  background: var(--t-hover);
+  color: var(--t-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin: 0.5rem 0 1rem;
+}
+.t-head h1 {
+  margin: 0 0 0.2rem;
+}
+.t-head__meta {
+  margin: 0;
+  color: var(--t-muted);
+  font-size: 0.9rem;
+}
+.t-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.t-updated {
+  color: var(--t-muted);
+  font-size: 0.8rem;
+  margin-right: 0.25rem;
+}
+.t-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.t-code code {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--t-text);
+}
+
+/* ---------- class switcher ---------- */
+.t-classbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--t-border);
+}
+.t-classtabs {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px;
+}
+.t-classtab {
+  display: inline-flex;
+  flex-direction: column;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--t-border);
+  border-radius: 6px;
+  background: var(--t-surface);
+  color: var(--t-text);
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.t-classtab:hover {
+  border-color: var(--t-border-strong);
+}
+.t-classtab[aria-current='page'] {
+  border-color: var(--t-accent);
+  box-shadow: inset 0 0 0 1px var(--t-accent);
+}
+.t-classtab__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.t-classtab__meta {
+  font-size: 0.75rem;
+  color: var(--t-muted);
+}
+.t-classbar__end {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+.t-select {
+  width: auto !important;
+  max-width: min(100%, 17rem);
+}
+.t-classbar .t-inlineform,
+.t-classbar .t-callout {
+  flex-basis: 100%;
+}
+
+/* ---------- forms in a row ---------- */
+.t-inlineform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+.t-inlineform .field,
+:root[data-area='teach'] .t-inlineform .field {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+.t-inlineform .t-linkbtn {
+  align-self: center;
+}
+.t-inlineform .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* ---------- callouts ---------- */
+.t-callout {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--t-border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--t-surface);
+  font-size: 0.9rem;
+}
+.t-callout p {
+  margin: 0;
+}
+.t-callout--warn {
+  border-color: color-mix(in srgb, var(--t-late) 35%, transparent);
+  border-left-color: var(--t-late);
+  background: var(--t-late-bg);
+}
+.t-callout--ok {
+  border-left-color: var(--t-done);
+  background: var(--t-done-bg);
+}
+.t-callout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem !important;
+}
+
+/* ---------- figures ---------- */
+.t-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
+.t-kpi {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow);
+  min-width: 0;
+}
+.t-kpi dd {
+  margin: 0;
+}
+.t-kpi__label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--t-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.t-kpi__value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  margin: 0.1rem 0 !important;
+}
+.t-kpi__sub {
+  font-size: 0.8rem;
+  color: var(--t-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t-kpi--bad .t-kpi__value {
+  color: var(--t-missed);
+}
+.t-kpi--warn .t-kpi__value {
+  color: var(--t-late);
+}
+.t-kpi--ok .t-kpi__value {
+  color: var(--t-done);
+}
+
+/* ---------- cards & layout ---------- */
+.t-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+@media (min-width: 1180px) {
+  .t-split {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+  .t-side {
+    position: sticky;
+    top: 4.2rem;
+  }
+}
+.t-side {
+  display: grid;
+  gap: 1rem;
+}
+.t-card {
+  position: relative;
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow);
+  min-width: 0;
+}
+.t-card--pad {
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.t-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--t-border);
+}
+.t-card__title {
+  margin: 0;
+  font-size: 0.95rem !important;
+}
+.t-card__foot {
+  margin: 0;
+  padding: 0.55rem 0.9rem;
+  border-top: 1px solid var(--t-border);
+}
+.t-subhead {
+  margin: 1.2rem 0 0.4rem;
+}
+.t-empty {
+  margin: 0;
+  padding: 1.25rem 0.9rem;
+  color: var(--t-muted);
+}
+.t-empty p {
+  margin: 0 0 0.6rem;
+}
+.t-empty--tight {
+  padding: 0.8rem 0.9rem;
+  font-size: 0.88rem;
+}
+.t-steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.3rem;
+}
+.t-steps li {
+  margin-bottom: 0.4rem;
+}
+
+/* ---------- toolbar ---------- */
+.t-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.t-search {
+  width: 12rem !important;
+}
+.t-seg {
+  display: inline-flex;
+  border: 1px solid var(--t-border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.t-seg button {
+  min-height: 32px;
+  padding: 0.2rem 0.65rem;
+  border: 0;
+  background: var(--t-surface);
+  color: var(--t-text);
+  font-size: 0.84rem;
+}
+.t-seg button + button {
+  border-left: 1px solid var(--t-border-strong);
+}
+.t-seg button:hover {
+  background: var(--t-hover);
+}
+.t-seg button[aria-pressed='true'] {
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+  font-weight: 600;
+}
+.t-seg__n {
+  color: var(--t-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- the progress grid ---------- */
+.t-tablewrap {
+  position: relative; /* contains the hidden screen-reader labels, so they can't widen the page */
+  overflow: auto;
+  max-height: max(420px, calc(100vh - 16rem));
+}
+.t-tablewrap:focus-visible {
+  outline-offset: -3px;
+}
+.t-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 0.86rem;
+}
+.t-grid th,
+.t-grid td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--t-border);
+  text-align: left;
+  vertical-align: middle;
+  background: var(--t-surface);
+}
+.t-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--t-surface-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--t-muted);
+  white-space: nowrap;
+}
+.t-grid__groups th {
+  height: 46px;
+}
+.t-grid__lessons th {
+  top: 46px;
+  font-weight: 500;
+}
+.t-grid__group {
+  border-left: 1px solid var(--t-border-strong);
+  max-width: 18rem;
+}
+.t-grid__group a {
+  display: block;
+  color: var(--t-text);
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t-grid__group a:hover {
+  text-decoration: underline;
+}
+.t-grid__due {
+  display: block;
+  font-weight: 500;
+  color: var(--t-muted);
+}
+.t-grid__due--ahead {
+  color: var(--t-accent);
+}
+.t-grid__lesson {
+  min-width: 5.25rem;
+  max-width: 8.5rem;
+}
+.t-grid__lesson a {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  color: var(--t-muted);
+  text-decoration: none;
+  line-height: 1.25;
+}
+.t-grid__lesson a:hover {
+  color: var(--t-link);
+  text-decoration: underline;
+}
+.t-gstart {
+  border-left: 1px solid var(--t-border-strong);
+}
+.t-grid__last {
+  border-right: 1px solid var(--t-border-strong);
+}
+/* The name column stays put while the lessons scroll. */
+.t-grid__corner,
+.t-grid__name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 11rem;
+  max-width: 15rem;
+  border-right: 1px solid var(--t-border);
+}
+.t-grid thead .t-grid__corner {
+  z-index: 3;
+}
+.t-grid__name a {
+  display: block;
+  font-weight: 600;
+  color: var(--t-text);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t-grid__name a:hover {
+  color: var(--t-link);
+  text-decoration: underline;
+}
+.t-grid__email {
+  display: block;
+  margin-top: 0.05rem;
+  font-size: 0.75rem;
+  color: var(--t-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t-grid tbody tr:hover > * {
+  background: var(--t-hover);
+}
+.t-grid tbody tr.is-selected > * {
+  background: var(--t-selected);
+}
+.t-grid tfoot th,
+.t-grid tfoot td {
+  background: var(--t-surface-2);
+  border-bottom: 0;
+  font-size: 0.8rem;
+  color: var(--t-muted);
+}
+.t-grid tfoot th {
+  font-weight: 600;
+}
+.t-cell {
+  text-align: center !important;
+}
+.t-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.t-sort:hover {
+  color: var(--t-text);
+}
+.t-sort__arrow {
+  font-size: 0.6rem;
+  min-width: 0.6rem;
+}
+.t-meter {
+  display: inline-block;
+  width: 2.6rem;
+  height: 5px;
+  margin-right: 0.45rem;
+  border-radius: 99px;
+  background: var(--track);
+  overflow: hidden;
+  vertical-align: middle;
+}
+.t-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--t-done);
+}
+
+/* status chips */
+.t-chip {
+  display: inline-block;
+  min-width: 2.6rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.t-chip--done {
+  background: var(--t-done-bg);
+  color: var(--t-done);
+}
+.t-chip--late {
+  background: var(--t-late-bg);
+  color: var(--t-late);
+}
+.t-chip--missed {
+  background: var(--t-missed-bg);
+  color: var(--t-missed);
+}
+.t-chip--progress {
+  background: var(--t-progress-bg);
+  color: var(--t-progress);
+}
+.t-chip--soon {
+  background: var(--t-soon-bg);
+  color: var(--t-soon);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--t-soon) 30%, transparent);
+}
+.t-chip--todo {
+  color: var(--t-muted);
+  font-weight: 500;
+}
+.t-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  border-top: 1px solid var(--t-border);
+  font-size: 0.78rem;
+  color: var(--t-muted);
+}
+.t-legend .t-chip {
+  min-width: 2.2rem;
+  margin-right: 0.15rem;
+}
+.t-legend__note {
+  flex-basis: 100%;
+}
+
+/* ---------- side column ---------- */
+.t-uplist,
+.t-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.t-up {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--t-border);
+}
+.t-uplist > li:last-child {
+  border-bottom: 0;
+}
+.t-uplist > li.t-small {
+  padding: 0.6rem 0.9rem;
+}
+.t-up p {
+  margin: 0 0 0.3rem;
+}
+.t-up__title {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.t-up__title a:first-child {
+  color: var(--t-text);
+  text-decoration: none;
+}
+.t-up__title a:first-child:hover {
+  text-decoration: underline;
+}
+.t-prep {
+  margin: 0.4rem 0;
+}
+.t-prep__bar {
+  display: flex;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--track);
+  overflow: hidden;
+}
+.t-prep__ready {
+  background: var(--t-done);
+}
+.t-prep__started {
+  background: var(--t-progress);
+  opacity: 0.75;
+}
+.t-prep__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.8rem;
+  margin: 0.35rem 0 0 !important;
+  font-size: 0.8rem;
+  color: var(--t-muted);
+}
+.t-prep__legend strong {
+  color: var(--t-text);
+  margin-right: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+.t-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 0.35rem;
+  border-radius: 2px;
+  background: var(--track);
+  vertical-align: 0;
+}
+.t-dot--done {
+  background: var(--t-done);
+}
+.t-dot--progress {
+  background: var(--t-progress);
+}
+.t-names {
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0 !important;
+}
+.t-names__label {
+  color: var(--t-muted);
+}
+.t-note {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--t-border);
+}
+.t-notes > .t-note:last-child {
+  border-bottom: 0;
+}
+.t-note p {
+  margin: 0;
+}
+.t-note__body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+.t-note__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+  margin-top: 0.3rem !important;
+  font-size: 0.78rem;
+  color: var(--t-muted);
+}
+.t-note__who {
+  font-weight: 600;
+  color: var(--t-text);
+}
+.t-note__handled {
+  color: var(--t-done);
+  font-weight: 600;
+}
+.t-note__act {
+  margin-top: 0.45rem !important;
+}
+.t-note--handled .t-note__body {
+  color: var(--t-muted);
+}
+.t-livestatus:empty {
+  display: none;
+}
+.t-livestatus__msg,
+.t-livestatus .error {
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--t-border);
+  background: var(--t-surface-2);
+}
+.t-livestatus__msg:empty {
+  display: none;
+}
+
+/* ---------- class settings ---------- */
+.t-settings .t-inlineform {
+  margin-top: 0;
+  max-width: 34rem;
+}
+.t-settings__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+.t-settings__close {
+  margin-left: auto;
+}
+
+/* ---------- student drawer ---------- */
+.t-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 20, 28, 0.35);
+}
+.t-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 61;
+  width: min(600px, 100%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--t-surface);
+  border-left: 1px solid var(--t-border);
+  box-shadow: var(--shadow-lift);
+  padding: 0 1.1rem 2rem;
+}
+.t-drawer__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 0 -1.1rem 1rem;
+  padding: 1rem 1.1rem 0.75rem;
+  background: var(--t-surface);
+  border-bottom: 1px solid var(--t-border);
+}
+.t-drawer__head h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.2rem !important;
+}
+.t-drawer__head h2:focus {
+  outline: none;
+}
+.t-drawer__head p {
+  margin: 0;
+}
+.t-iconbtn {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--t-border-strong);
+  border-radius: 6px;
+  background: var(--t-surface);
+  color: var(--t-text);
+}
+.t-iconbtn:hover {
+  background: var(--t-hover);
+}
+.t-iconbtn svg {
+  width: 14px;
+  height: 14px;
+}
+.t-kpis--drawer {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+.t-kpis--drawer .t-kpi {
+  box-shadow: none;
+  background: var(--t-surface-2);
+}
+.t-kpis--drawer .t-kpi__value {
+  font-size: 1.2rem;
+}
+.t-drawer__sec {
+  margin-top: 1.1rem;
+}
+.t-drawer__h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+  margin: 0 0 0.4rem;
+}
+.t-drawer__h a {
+  color: var(--t-text);
+}
+.t-drawer .t-notes {
+  border: 1px solid var(--t-border);
+  border-radius: 6px;
+}
+.t-drawer__danger {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--t-border);
+}
+.t-dtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.t-dtable th,
+.t-dtable td {
+  padding: 0.4rem 0.45rem;
+  border-bottom: 1px solid var(--t-border);
+  text-align: left;
+  vertical-align: middle;
+}
+.t-dtable thead th {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--t-muted);
+  background: var(--t-surface-2);
+}
+.t-dtable tbody th {
+  font-weight: 500;
+}
+
+/* ---------- plain tables (courses, lessons, notes) ---------- */
+.t-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.t-table th,
+.t-table td {
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--t-border);
+  text-align: left;
+  vertical-align: middle;
+}
+.t-table thead th {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--t-muted);
+  background: var(--t-surface-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.t-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.t-table tbody tr:hover > * {
+  background: var(--t-hover);
+}
+.t-table .t-strong a,
+.t-table .t-strong {
+  font-weight: 600;
+  color: var(--t-text);
+}
+.t-table__actions {
+  text-align: right !important;
+  white-space: nowrap;
+}
+.t-table__actions > * + * {
+  margin-left: 0.35rem;
+}
+.t-ord {
+  width: 2.5rem;
+  color: var(--t-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- assignment report ---------- */
+.t-qlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.t-q {
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--t-border);
+}
+.t-q:last-child {
+  border-bottom: 0;
+}
+.t-q__prompt {
+  margin: 0 0 0.2rem;
+  font-weight: 600;
+}
+.t-q__rate {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--t-muted);
+}
+.t-q__rate strong {
+  color: var(--t-text);
+}
+.t-q__rate--low strong {
+  color: var(--t-missed);
+}
+.t-dist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  max-width: 40rem;
+}
+.t-dist li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8rem 2rem;
+  gap: 0.6rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.t-dist__bar {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--track);
+  overflow: hidden;
+}
+.t-dist__bar span {
+  display: block;
+  height: 100%;
+  background: var(--t-muted);
+}
+.t-dist--correct .t-dist__label {
+  font-weight: 700;
+  color: var(--t-done);
+}
+.t-dist--correct .t-dist__bar span {
+  background: var(--t-done);
+}
+.t-dist__n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.t-group {
+  margin-top: 0;
+}
+.t-group + .t-group {
+  border-top: 1px solid var(--t-border);
+}
+.t-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--t-surface-2);
+  border-bottom: 1px solid var(--t-border);
+}
+.t-group__head h3 {
+  margin: 0;
+}
+.t-group__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.t-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+/* ---------- notes page filters ---------- */
+.t-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+}
+:root[data-area='teach'] .t-filters .field {
+  margin: 0;
+}
+.t-filters select {
+  min-width: 11rem;
+}
+.t-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+}
+.t-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--t-accent);
+}
+.t-check label {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ---------- lesson editor: who can see it ---------- */
+.t-visible {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--t-border);
+  border-radius: 6px;
+  background: var(--t-surface);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.t-visible h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem !important;
+}
+.t-visible--warn {
+  border-color: color-mix(in srgb, var(--t-late) 40%, transparent);
+  border-left: 3px solid var(--t-late);
+  background: var(--t-late-bg);
+}
+.t-visible ul {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+}
+.t-visible p {
+  margin: 0 0 0.6rem;
+}
+.t-visible .t-inlineform {
+  margin: 0.4rem 0;
+}
+.t-visible .t-inlineform .field {
+  flex-basis: 100%;
+}
+
+/* ---------- lesson editor, assignment editor (shared markup) ---------- */
+:root[data-area='teach'] .editor__section {
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+}
+:root[data-area='teach'] .editor__section > .rulehead {
+  margin: -0.2rem 0 0.8rem;
+}
+:root[data-area='teach'] .editor__index {
+  padding: 0.6rem 0.8rem;
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius);
+}
+:root[data-area='teach'] .savebar {
+  background: var(--t-surface);
+  box-shadow: 0 -4px 14px rgba(16, 24, 40, 0.06);
+}
+:root[data-area='teach'] .qcard {
+  background: var(--t-surface-2);
+  border-radius: 6px;
+}
+:root[data-area='teach'] .softwarn {
+  border-radius: 6px;
+}
+:root[data-area='teach'] .dangerzone {
+  border-color: var(--t-border);
+}
+
+@media (max-width: 719px) {
+  .t-head__actions .t-updated {
+    flex-basis: 100%;
+  }
+  .t-toolbar,
+  .t-toolbar > :not(.visually-hidden) {
+    width: 100%;
+    max-width: 100%;
+  }
+  .t-seg {
+    overflow-x: auto;
+  }
+  .t-search {
+    width: 100% !important;
+  }
+  .t-grid__corner,
+  .t-grid__name {
+    min-width: 8.5rem;
+  }
+  .t-grid__email {
+    display: none;
+  }
+}
+
+/* ---------- assignment editor ---------- */
+.t-fieldset {
+  margin: 0.4rem 0 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--t-border);
+  border-radius: 6px;
+}
+.t-fieldset legend {
+  padding: 0 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.t-table--boxed {
+  border: 1px solid var(--t-border);
+  border-radius: 6px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.t-table--boxed td {
+  padding: 0.35rem 0.6rem;
+}

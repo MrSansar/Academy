@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cellKind,
+  classQuizByStudent,
   classesForNote,
+  needsAttention,
+  rowStats,
+  unassignedLessons,
   isRecentNote,
   prepFor,
   progressKey,
@@ -29,6 +34,7 @@ const cls: OvClass = {
   joinCode: 'ABCD2345',
   courseId: 'co',
   courseTitle: 'Physics course',
+  courseLessons: [L('l0'), L('l1'), L('l2'), L('l3')],
   students: [ana, ben, cy],
   assignments: [
     { id: 'past', title: 'Past', due_at: iso(-48 * HOUR), classId: 'c1', lessons: [L('l0')] },
@@ -141,5 +147,79 @@ describe('handled notes', () => {
       { id: 3, handledAt: null },
     ])
     expect(withHandled(notes, [2], false, 'NOW')[1]).toEqual({ id: 2, handledAt: null })
+  })
+})
+
+describe('unassignedLessons', () => {
+  it('lists course lessons that no assignment of the class includes', () => {
+    expect(unassignedLessons(cls).map((l) => l.id)).toEqual(['l3'])
+  })
+  it('is empty when every lesson is assigned', () => {
+    expect(unassignedLessons({ ...cls, courseLessons: [L('l1')] })).toEqual([])
+  })
+})
+
+describe('cellKind', () => {
+  const due = iso(30 * HOUR)
+  it('done before class, or late after it', () => {
+    expect(cellKind({ completed_at: iso(-HOUR) }, due, now)).toBe('done')
+    expect(cellKind({ completed_at: iso(31 * HOUR) }, due, now + 40 * HOUR)).toBe('late')
+  })
+  it('missed once class has started without finishing', () => {
+    expect(cellKind(undefined, iso(-HOUR), now)).toBe('missed')
+    expect(cellKind({ completed_at: null }, iso(-HOUR), now)).toBe('missed')
+  })
+  it('started, soon (within 3 days) or not opened yet', () => {
+    expect(cellKind({ completed_at: null }, due, now)).toBe('progress')
+    expect(cellKind(undefined, due, now)).toBe('soon')
+    expect(cellKind(undefined, iso(100 * HOUR), now)).toBe('todo')
+  })
+})
+
+describe('rowStats', () => {
+  const quiz = classQuizByStudent(
+    [
+      { id: 'q1', lesson_id: 'l1' },
+      { id: 'q2', lesson_id: 'l1' },
+      { id: 'q9', lesson_id: 'elsewhere' },
+    ],
+    [
+      { question_id: 'q1', student_id: 'ana', is_correct: false, created_at: iso(-3 * HOUR) },
+      { question_id: 'q1', student_id: 'ana', is_correct: true, created_at: iso(-2 * HOUR) },
+      { question_id: 'q2', student_id: 'ana', is_correct: true, created_at: iso(-2 * HOUR) },
+      { question_id: 'q9', student_id: 'ana', is_correct: true, created_at: iso(-2 * HOUR) },
+    ],
+    ['ana', 'ben'],
+  )
+  const p = prog([
+    { student_id: 'ana', lesson_id: 'l0', completed_at: iso(-47 * HOUR) }, // after the past class: late
+    { student_id: 'ana', lesson_id: 'l1', completed_at: iso(-HOUR), last_watched_at: iso(-HOUR) },
+    { student_id: 'ana', lesson_id: 'l2', percent_watched: 30 },
+  ])
+  const notes = [
+    { studentId: 'ana', lessonId: 'l1', handledAt: null },
+    { studentId: 'ana', lessonId: 'l1', handledAt: iso(-HOUR) },
+    { studentId: 'ana', lessonId: 'zz', handledAt: null },
+  ]
+
+  it('counts done, late, missed and due-soon over the assignments shown', () => {
+    const r = rowStats('ana', cls.assignments, p, quiz.get('ana'), notes, now)
+    expect(r).toMatchObject({ assigned: 3, done: 2, late: 1, missed: 0, dueSoon: 1, openNotes: 1 })
+    expect(r.lastActive).toBe(iso(-HOUR))
+    expect(needsAttention(r)).toBe(true)
+  })
+  it('adds up first-try quiz results on the shown lessons only', () => {
+    const r = rowStats('ana', cls.assignments, p, quiz.get('ana'), notes, now)
+    expect(r.quiz).toEqual({ questions: 2, answered: 2, right: 1 })
+    expect(rowStats('ben', cls.assignments, p, quiz.get('ben'), notes, now).quiz).toEqual({ questions: 2, answered: 0, right: 0 })
+  })
+  it('a student who opened nothing has missed the past lesson', () => {
+    const r = rowStats('cy', cls.assignments, p, undefined, notes, now)
+    expect(r).toMatchObject({ done: 0, missed: 1, dueSoon: 2, lastActive: null })
+  })
+  it('one assignment only', () => {
+    const r = rowStats('ana', [cls.assignments[1]], p, quiz.get('ana'), notes, now)
+    expect(r).toMatchObject({ assigned: 2, done: 1, late: 0, missed: 0 })
+    expect(needsAttention(rowStats('ana', [cls.assignments[0]], p, undefined, [], now))).toBe(false)
   })
 })

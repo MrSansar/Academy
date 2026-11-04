@@ -112,3 +112,9 @@ export function calendarParts(iso: string) {
     time: timeOnly.format(d),
   }
 }
+
+/** "Nov 4, 3:15 PM": a due time that fits in a table header. */
+export function formatDueCompact(iso: string): string {
+  const d = new Date(iso)
+  return `${monthDay.format(d)}, ${timeOnly.format(d)}`
+}

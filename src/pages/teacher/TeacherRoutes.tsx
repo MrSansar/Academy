@@ -1,30 +1,29 @@
-import { Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useParams } from 'react-router'
 import { NotFound } from '../../components/ui'
+import { classPath, studentPath } from '../../lib/teacherOverview'
 import { AssignmentDashboard } from './AssignmentDashboard'
 import { AssignmentEditor } from './AssignmentEditor'
-import { ClassesPage } from './ClassesPage'
-import { ClassPage } from './ClassPage'
 import { CourseLessons } from './CourseLessons'
 import { CoursesPage } from './CoursesPage'
-import { Dashboard } from './Dashboard'
 import { LessonEditor } from './LessonEditor'
 import { NotesPage } from './NotesPage'
-import { StudentPage } from './StudentPage'
+import { OverviewPage } from './OverviewPage'
+import '../../teacher.css'
 
 /**
  * Teacher sections, matching the top nav:
- *   Dashboard  /teach
- *   Classes    /teach/classes → class → student, assignment report, assignment editor
- *   Lessons    /teach/courses → course → lesson editor
- *   Notes      /teach/notes
+ *   Overview  /teach (?class=…&student=…)  every class's progress on one screen;
+ *             assignment report and editor hang off it
+ *   Lessons   /teach/courses → course → lesson editor
+ *   Notes     /teach/notes
  */
 export default function TeacherRoutes() {
   return (
     <Routes>
-      <Route index element={<Dashboard />} />
-      <Route path="classes" element={<ClassesPage />} />
-      <Route path="classes/:classId" element={<ClassPage />} />
-      <Route path="classes/:classId/students/:studentId" element={<StudentPage />} />
+      <Route index element={<OverviewPage />} />
+      <Route path="classes" element={<Navigate to="/teach" replace />} />
+      <Route path="classes/:classId" element={<ClassRedirect />} />
+      <Route path="classes/:classId/students/:studentId" element={<ClassRedirect />} />
       <Route path="classes/:classId/assignments/new" element={<AssignmentEditor />} />
       <Route path="assignments/:assignmentId" element={<AssignmentDashboard />} />
       <Route path="assignments/:assignmentId/edit" element={<AssignmentEditor />} />
@@ -36,4 +35,10 @@ export default function TeacherRoutes() {
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
+}
+
+/** Old class and student page links open the same view on the overview. */
+function ClassRedirect() {
+  const { classId = '', studentId } = useParams()
+  return <Navigate to={studentId ? studentPath(classId, studentId) : classPath(classId)} replace />
 }

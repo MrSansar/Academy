@@ -1,66 +1,95 @@
-/** Small pieces shared by the teacher's dashboard, class, notes and student pages. */
-import type { CSSProperties } from 'react'
+/** Small pieces shared by the teacher pages. Plain on purpose: numbers and words, no decoration. */
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { ClassMark } from '../../components/Notebook'
-import { tilt } from '../../lib/fun'
-import { formatRelative, formatShort } from '../../lib/format'
-import { classesForNote, isRecentNote, studentPath, type OvClass, type OvNote, type Prep } from '../../lib/teacherOverview'
+import { formatRelative, formatShort, pct } from '../../lib/format'
+import { isRecentNote, studentPath, type CellKind, type OvNote, type OvProgress, type Prep } from '../../lib/teacherOverview'
 import type { NoteStatus } from '../../lib/useNoteActions'
 
 /** One bar for a whole class: finished / started / not opened, with the numbers spelled out. */
-export function PrepBar({ prep }: { prep: Prep<{ id: string; name: string }> }) {
+export function PrepBar({ prep, compact = false }: { prep: Prep<{ id: string; name: string }>; compact?: boolean }) {
   const total = prep.ready.length + prep.started.length + prep.notOpened.length
   const w = (n: number) => `${total ? (n / total) * 100 : 0}%`
   return (
-    <div className="prep">
-      <div className="prep__bar" aria-hidden="true">
-        <span className="prep__ready" style={{ width: w(prep.ready.length) }} />
-        <span className="prep__started" style={{ width: w(prep.started.length) }} />
+    <div className={compact ? 't-prep t-prep--compact' : 't-prep'}>
+      <div className="t-prep__bar" aria-hidden="true">
+        <span className="t-prep__ready" style={{ width: w(prep.ready.length) }} />
+        <span className="t-prep__started" style={{ width: w(prep.started.length) }} />
       </div>
-      <p className="prep__legend">
-        <span className="prep__n prep__n--ready">{prep.ready.length}</span> ready ·{' '}
-        <span className="prep__n prep__n--started">{prep.started.length}</span> started ·{' '}
-        <span className="prep__n">{prep.notOpened.length}</span> not opened
-        <span className="muted"> of {total}</span>
+      <p className="t-prep__legend">
+        <span>
+          <i className="t-dot t-dot--done" aria-hidden="true" />
+          <strong>{prep.ready.length}</strong> finished
+        </span>
+        <span>
+          <i className="t-dot t-dot--progress" aria-hidden="true" />
+          <strong>{prep.started.length}</strong> started
+        </span>
+        <span>
+          <i className="t-dot" aria-hidden="true" />
+          <strong>{prep.notOpened.length}</strong> not opened
+        </span>
       </p>
     </div>
   )
 }
 
-/** Names of students who haven't opened an assignment, each linking to their page. */
-export function NotOpenedList({
-  prep,
-  classId,
-  level,
-  max = 6,
-}: {
-  prep: Prep<{ id: string; name: string }>
-  classId: string
-  level: 'none' | 'soon' | 'urgent'
-  max?: number
-}) {
+/** Names of students who haven't opened an assignment; each opens that student's details. */
+export function NotOpenedList({ prep, classId, max = 8 }: { prep: Prep<{ id: string; name: string }>; classId: string; max?: number }) {
   if (prep.notOpened.length === 0) return null
   const shown = prep.notOpened.slice(0, max)
   const more = prep.notOpened.length - shown.length
   return (
-    <p className={`nudge nudge--${level}`}>
-      <span className="nudge__label">Not opened yet:</span>{' '}
+    <p className="t-names">
+      <span className="t-names__label">Not opened:</span>{' '}
       {shown.map((s, i) => (
         <span key={s.id}>
           <Link to={studentPath(classId, s.id)}>{s.name}</Link>
           {i < shown.length - 1 ? ', ' : ''}
         </span>
       ))}
-      {more > 0 && <span className="muted"> and {more} more</span>}
+      {more > 0 && <span className="t-muted"> and {more} more</span>}
     </p>
   )
 }
 
-/** A student's note, shown as the sticky note they wrote, with "Mark handled" / "Reopen". */
-export function NoteCard({
+const CELL_LABEL: Record<CellKind, string> = {
+  done: 'Complete',
+  late: 'Complete, late',
+  missed: 'Not finished before class',
+  progress: 'Started',
+  soon: 'Not opened, due soon',
+  todo: 'Not opened',
+}
+
+/** A lesson's state as a small chip: ✓, ✓ late, 40%, Missed, or a dash. The full wording is read out. */
+export function StatusChip({ kind, p }: { kind: CellKind; p?: Pick<OvProgress, 'percent_watched'> }) {
+  const watched = p ? pct(Number(p.percent_watched)) : ''
+  const text =
+    kind === 'done'
+      ? '✓'
+      : kind === 'late'
+        ? '✓ late'
+        : kind === 'progress'
+          ? watched
+          : kind === 'missed'
+            ? p
+              ? watched
+              : 'Missed'
+            : '–'
+  const spoken = kind === 'progress' || (kind === 'missed' && p) ? `${CELL_LABEL[kind]}, ${watched} watched` : CELL_LABEL[kind]
+  return (
+    <span className={`t-chip t-chip--${kind}`}>
+      <span aria-hidden="true">{text}</span>
+      <span className="visually-hidden">{spoken}</span>
+    </span>
+  )
+}
+
+/** One student note as a plain row, with "Mark handled" / "Reopen". */
+export function NoteItem({
   note,
   now,
-  classes = [],
+  classId,
   showLesson = true,
   showStudent = true,
   onHandle,
@@ -68,71 +97,53 @@ export function NoteCard({
   note: OvNote
   /** When the page loaded; decides the "New" tag. */
   now: number
-  classes?: OvClass[]
+  /** Links the student's name to their details in this class. */
+  classId?: string
   showLesson?: boolean
   showStudent?: boolean
-  /** Omit for a read-only card. */
+  /** Omit for a read-only row. */
   onHandle?: (note: OvNote, handled: boolean) => void
 }) {
-  const where = classesForNote(note, classes)
-  const home = where[0]
   const handled = Boolean(note.handledAt)
   return (
-    <li
-      className={handled ? 'notecard notecard--handled' : 'notecard'}
-      style={{ '--tilt': `${tilt(String(note.id), 1.6)}deg` } as CSSProperties}
-    >
-      {isRecentNote(note, now) && <span className="notecard__new">New</span>}
-      <p className="notecard__body">{note.body}</p>
-      <p className="notecard__meta">
+    <li className={handled ? 't-note t-note--handled' : 't-note'}>
+      <p className="t-note__body">{note.body}</p>
+      <p className="t-note__meta">
+        {isRecentNote(note, now) && <span className="t-tag t-tag--accent">New</span>}
         {showStudent &&
-          (home ? (
-            <Link className="notecard__who" to={studentPath(home.id, note.studentId)}>
+          (classId ? (
+            <Link className="t-note__who" to={studentPath(classId, note.studentId)}>
               {note.studentName}
             </Link>
           ) : (
-            <span className="notecard__who">{note.studentName}</span>
+            <span className="t-note__who">{note.studentName}</span>
           ))}
         {showLesson && (
-          <span className="notecard__lesson">
+          <span>
             on <Link to={`/teach/lessons/${note.lessonId}`}>{note.lessonTitle}</Link>
           </span>
         )}
-        <span className="notecard__time">
-          <time dateTime={note.created_at} title={formatShort(note.created_at)}>
-            {formatRelative(note.created_at, now)}
-          </time>
-          {where.length > 0 && (
-            <>
-              {' · '}
-              {where.map((c) => (
-                <ClassMark key={c.id} id={c.id} name={c.name} />
-              ))}
-            </>
-          )}
-        </span>
-      </p>
-      {handled ? (
-        <p className="notecard__handled">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <circle cx="12" cy="12" r="10" fill="currentColor" />
-            <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>
+        <time dateTime={note.created_at} title={formatShort(note.created_at)}>
+          {formatRelative(note.created_at, now)}
+        </time>
+        {handled && (
+          <span className="t-note__handled">
             Handled <time dateTime={note.handledAt!}>{formatRelative(note.handledAt!, now)}</time>
           </span>
-          {onHandle && (
-            <button type="button" className="linkish" onClick={() => onHandle(note, false)}>
+        )}
+      </p>
+      {onHandle && (
+        <p className="t-note__act">
+          {handled ? (
+            <button type="button" className="t-linkbtn" onClick={() => onHandle(note, false)}>
               Reopen<span className="visually-hidden"> {note.studentName}’s note</span>
+            </button>
+          ) : (
+            <button type="button" className="btn btn--ghost btn--small" onClick={() => onHandle(note, true)}>
+              Mark handled<span className="visually-hidden"> ({note.studentName}’s note)</span>
             </button>
           )}
         </p>
-      ) : (
-        onHandle && (
-          <button type="button" className="btn btn--ink btn--small notecard__act" onClick={() => onHandle(note, true)}>
-            Mark handled<span className="visually-hidden"> ({note.studentName}’s note)</span>
-          </button>
-        )
       )}
     </li>
   )
@@ -141,19 +152,30 @@ export function NoteCard({
 /** "Marked 2 notes handled. Undo", or an error, after a note action. */
 export function NoteActionStatus({ status, error }: { status: NoteStatus | null; error: string }) {
   return (
-    <div className="notestatus" aria-live="polite">
+    <div className="t-livestatus" aria-live="polite">
       {error ? (
         <p className="error">{error}</p>
       ) : status ? (
-        <p className="notestatus__msg">
+        <p className="t-livestatus__msg">
           {status.text}{' '}
           {status.undo && (
-            <button type="button" className="linkish" onClick={status.undo}>
+            <button type="button" className="t-linkbtn" onClick={status.undo}>
               Undo
             </button>
           )}
         </p>
       ) : null}
+    </div>
+  )
+}
+
+/** A figure with a label: "Need attention 4 · 3 missed a lesson". */
+export function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'bad' | 'warn' | 'ok' }) {
+  return (
+    <div className={tone ? `t-kpi t-kpi--${tone}` : 't-kpi'}>
+      <dt className="t-kpi__label">{label}</dt>
+      <dd className="t-kpi__value">{value}</dd>
+      {sub && <dd className="t-kpi__sub">{sub}</dd>}
     </div>
   )
 }

@@ -22,15 +22,15 @@ const STUDENT_NAV: NavItem[] = [
 
 function teacherNav(openNotes: number): NavItem[] {
   return [
-    { to: '/teach', label: 'Dashboard', match: (p) => p === '/teach' || p === '/teach/' },
     {
-      to: '/teach/classes',
-      label: 'Classes',
-      match: (p) => p.startsWith('/teach/classes') || p.startsWith('/teach/assignments'),
+      to: '/teach',
+      label: 'Overview',
+      match: (p) =>
+        p === '/teach' || p === '/teach/' || p.startsWith('/teach/classes') || p.startsWith('/teach/assignments'),
     },
     {
       to: '/teach/courses',
-      label: 'Courses',
+      label: 'Lessons',
       match: (p) => p.startsWith('/teach/courses') || p.startsWith('/teach/lessons') || p.startsWith('/lesson/'),
     },
     { to: '/teach/notes', label: 'Notes', match: (p) => p.startsWith('/teach/notes'), badge: openNotes },
@@ -70,6 +70,16 @@ export function Layout({ children }: { children: ReactNode }) {
   const mainRef = useRef<HTMLElement>(null)
   const openNotes = useOpenNotesCount(isTeacher, location.pathname)
   const items = isTeacher ? teacherNav(openNotes) : STUDENT_NAV
+  // Teacher pages use a plain working style (teacher.css); a lesson preview keeps the student look.
+  const teachArea = isTeacher && location.pathname.startsWith('/teach')
+  useEffect(() => {
+    const root = document.documentElement
+    if (teachArea) root.dataset.area = 'teach'
+    else delete root.dataset.area
+    return () => {
+      delete root.dataset.area
+    }
+  }, [teachArea])
 
   // Move focus to the page on navigation so screen-reader and keyboard users start at the top.
   const first = useRef(true)
@@ -186,7 +196,7 @@ function AccountMenu() {
           <li>
             <button type="button" aria-pressed={theme === 'dark'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
               <SunMoon dark={theme === 'dark'} />
-              Dark chalkboard theme
+              {isTeacher ? 'Dark theme' : 'Dark chalkboard theme'}
               <span className="menu__state" aria-hidden="true">
                 {theme === 'dark' ? 'On' : 'Off'}
               </span>
