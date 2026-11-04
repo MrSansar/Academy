@@ -148,7 +148,10 @@ export async function loadOverview(opts: { classId?: string; studentId?: string;
   const notesQuery = (ids?: string[]) => {
     let nq = supabase
       .from('confusion_notes')
-      .select('id, body, created_at, lesson_id, student_id, lessons(title), profiles(full_name, email)')
+      // Name the student key: a note can also point at profiles through handled_by.
+      .select(
+        'id, body, created_at, lesson_id, student_id, lessons(title), profiles!confusion_notes_student_id_fkey(full_name, email)',
+      )
       .order('created_at', { ascending: false })
     if (opts.studentId) nq = nq.eq('student_id', opts.studentId)
     if (ids) nq = nq.in('lesson_id', ids)
